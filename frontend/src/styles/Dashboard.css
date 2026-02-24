@@ -1,0 +1,40 @@
+/* ============================= */
+/* GLOBAL DASHBOARD STYLES */
+/* ============================= */
+
+.container {
+  padding: 30px;
+  max-width: 1200px;
+  margin: auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container h2 {
+  margin-bottom: 20px;
+  color: #1f2937;
+}
+
+/* Card layout */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.card h4 {
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.card p {
+  margin: 4px 0;
+  color: #4b5563;
+}

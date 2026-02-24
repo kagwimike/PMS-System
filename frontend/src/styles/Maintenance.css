@@ -1,0 +1,89 @@
+/* Maintenance.css */
+
+.maintenance-dashboard,
+.maintenance-form {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  font-family: 'Segoe UI', sans-serif;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #1f2937;
+}
+
+.requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.requests-table th,
+.requests-table td {
+  border: 1px solid #d1d5db;
+  padding: 10px;
+  text-align: center;
+}
+
+.requests-table th {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.btn-add {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 8px 14px;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.btn-add:hover {
+  background: #3b82f6;
+}
+
+.maintenance-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.maintenance-form input,
+.maintenance-form textarea,
+.maintenance-form select,
+.maintenance-form button {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font-size: 1rem;
+}
+
+.maintenance-form button {
+  background: #10b981;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s ease;
+}
+
+.maintenance-form button:hover {
+  background: #059669;
+}
+
+.success {
+  color: #059669;
+  font-weight: bold;
+}
+
+.error {
+  color: #ef4444;
+  font-weight: bold;
+}

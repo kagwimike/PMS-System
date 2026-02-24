@@ -1,0 +1,79 @@
+/* ============================= */
+/* MAINTENANCE DASHBOARD */
+/* ============================= */
+
+select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+select:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+
+/* Status buttons container */
+.card div {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.card button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+}
+
+/* Start */
+.card button:nth-child(1) {
+  background-color: #f59e0b;
+  color: white;
+}
+
+/* Complete */
+.card button:nth-child(2) {
+  background-color: #10b981;
+  color: white;
+}
+
+/* Cancel */
+.card button:nth-child(3) {
+  background-color: #ef4444;
+  color: white;
+}
+
+.card button:hover {
+  opacity: 0.85;
+}
+
+/* Status color indicators */
+.status-PENDING {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.status-IN_PROGRESS {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.status-COMPLETED {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.status-CANCELLED {
+  color: #ef4444;
+  font-weight: 600;
+}

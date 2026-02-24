@@ -1,0 +1,179 @@
+/* ===== Reset Safe Defaults ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== Top Navbar ===== */
+.navbar {
+  width: 100%;
+  height: 70px;
+  background: #0f172a;
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 25px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+/* Logo */
+.logo a {
+  color: white;
+  font-size: 22px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Public nav links */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-links a {
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 15px;
+  transition: 0.3s ease;
+}
+
+.nav-links a:hover {
+  color: #38bdf8;
+}
+
+/* Register button */
+.register-btn {
+  background: #38bdf8;
+  color: #0f172a !important;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.register-btn:hover {
+  background: #0ea5e9;
+}
+
+/* Burger menu */
+.burger {
+  font-size: 24px;
+  cursor: pointer;
+  display: block;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  position: fixed;
+  top: 70px; /* below navbar */
+  left: -260px;
+  width: 260px;
+  height: calc(100vh - 70px);
+  background: #1e293b;
+  transition: 0.3s ease-in-out;
+  z-index: 999;
+  overflow-y: auto;
+}
+
+.sidebar.active {
+  left: 0;
+}
+
+.sidebar-content {
+  padding: 25px;
+}
+
+/* Section titles */
+.sidebar h4 {
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+/* Sidebar links */
+.sidebar a {
+  display: block;
+  padding: 8px 0;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.sidebar a:hover {
+  color: #38bdf8;
+  padding-left: 6px;
+}
+
+/* Logout button */
+.logout-btn {
+  margin-top: 20px;
+  padding: 10px;
+  width: 100%;
+  background: #ef4444;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s ease;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+}
+
+/* Prevent page content hiding behind fixed navbar */
+body {
+  padding-top: 70px;
+}
+
+/* Right side navbar items */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+}
+
+/* Notification Bell */
+.bell-container {
+  position: relative;
+  font-size: 22px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.bell-container:hover {
+  transform: scale(1.1);
+}
+
+/* Unread badge */
+.notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background: red;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+/* Notification dropdown */
+.notification-dropdown {
+  position: absolute;
+  right: 0;
+  top: 60px;
+  z-index: 2000;
+}

@@ -1,0 +1,112 @@
+/* --- Variables & Container --- */
+:root {
+  --primary-color: #2c3e50;
+  --accent-color: #3498db;
+  --success-color: #27ae60;
+  --warning-color: #f39c12;
+  --bg-color: #f4f7f6;
+  --white: #ffffff;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.tenant-dashboard {
+  padding: 80px 5% 40px; /* Top padding accounts for fixed Navbar */
+  background-color: var(--bg-color);
+  min-height: 100vh;
+}
+
+.tenant-dashboard h2 {
+  color: var(--primary-color);
+  margin-bottom: 30px;
+  font-size: 2rem;
+  border-bottom: 3px solid var(--accent-color);
+  display: inline-block;
+}
+
+/* --- Section Styling --- */
+section {
+  margin-bottom: 50px;
+}
+
+section h3 {
+  color: #34495e;
+  margin-bottom: 20px;
+  font-size: 1.4rem;
+}
+
+/* --- Cards Layout --- */
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: var(--white);
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease;
+  border-left: 5px solid var(--accent-color);
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card p {
+  margin: 10px 0;
+  color: #555;
+  line-height: 1.5;
+}
+
+.card strong {
+  color: var(--primary-color);
+}
+
+/* --- Specific Card Styles --- */
+.request-card {
+  border-left-color: var(--warning-color);
+}
+
+/* --- Vendor Information Box --- */
+.vendor-box {
+  background-color: #f0f7fd;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  border: 1px dashed var(--accent-color);
+}
+
+.vendor-box p {
+  font-size: 0.9rem;
+  margin: 5px 0;
+}
+
+.no-vendor {
+  color: #95a5a6;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* --- Status Badges (Optional additions) --- */
+/* You can apply these if you wrap status in a span */
+.status-active {
+  color: var(--success-color);
+  font-weight: bold;
+}
+
+.status-pending {
+  color: var(--warning-color);
+}
+
+/* --- Responsive Design --- */
+@media (max-width: 768px) {
+  .tenant-dashboard {
+    padding-top: 100px;
+  }
+  
+  .cards-container {
+    grid-template-columns: 1fr;
+  }
+}

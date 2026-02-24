@@ -1,0 +1,32 @@
+.inspections-dashboard {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.inspections-dashboard h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.inspections-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.inspections-table th,
+.inspections-table td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: left;
+}
+
+.inspections-table th {
+  background: #1d4ed8;
+  color: white;
+}
+
+.error-message {
+  color: red;
+  text-align: center;
+}

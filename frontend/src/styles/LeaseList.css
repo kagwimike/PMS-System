@@ -1,0 +1,63 @@
+.lease-list-container {
+  padding: 30px;
+}
+
+.page-title {
+  margin-bottom: 20px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.lease-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.lease-table th,
+.lease-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eaeaea;
+  text-align: left;
+}
+
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background-color: #e6f9f0;
+  color: #0f9d58;
+}
+
+.status-badge.terminated {
+  background-color: #fdecea;
+  color: #d93025;
+}
+
+.terminate-btn {
+  background-color: #d93025;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.terminate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  color: #777;
+}
+
+.no-action {
+  color: #bbb;
+}

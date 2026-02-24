@@ -1,0 +1,157 @@
+/* =====================================
+   ENTERPRISE PMS LOGIN DESIGN
+===================================== */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: #f4f6f9;
+}
+
+/* Center Wrapper */
+.auth-container {
+  width: 100%;
+  max-width: 420px;
+  margin: 120px auto;
+  padding: 45px 40px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  text-align: left;
+}
+
+/* Logo / Title */
+.auth-container h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+/* Input Fields */
+.auth-container input {
+  width: 100%;
+  padding: 14px 15px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.auth-container input:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+/* Primary Login Button */
+.auth-container button[type="submit"] {
+  width: 100%;
+  padding: 14px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.auth-container button[type="submit"]:hover {
+  background: #1e40af;
+}
+
+/* Divider */
+.auth-container .divider {
+  margin: 25px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  position: relative;
+}
+
+.auth-container .divider::before,
+.auth-container .divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.auth-container .divider::before {
+  left: 0;
+}
+
+.auth-container .divider::after {
+  right: 0;
+}
+
+/* Google Button */
+.google-login-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.google-login-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+/* Error */
+.error-message {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+
+/* Password wrapper */
+.password-wrapper {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding: 14px 15px;
+  padding-right: 70px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 14px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 13px;
+  color: #2563eb;
+  font-weight: 500;
+  user-select: none;
+  transition: 0.2s;
+}
+
+.toggle-password:hover {
+  color: #1e40af;
+}

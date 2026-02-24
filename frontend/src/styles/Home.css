@@ -1,0 +1,138 @@
+/* ===== WRAPPER ===== */
+
+.home-wrapper {
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* ===== HERO SECTION ===== */
+
+.hero {
+  min-height: 85vh;
+
+  /* 🔥 Replace gradient with image */
+  background: url("../assets/home-bg.jpg") center/cover no-repeat;
+
+  position: relative;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 40px;
+  overflow: hidden;
+}
+
+/* Dark overlay for readability */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 0;
+}
+
+/* Ensure text appears above overlay */
+.hero h1,
+.hero-subtext,
+.hero-buttons {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.highlight {
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtext {
+  font-size: 20px;
+  max-width: 700px;
+  margin-bottom: 35px;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.primary-btn {
+  background: #00c6ff;
+  color: white;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.primary-btn:hover {
+  background: #0072ff;
+  transform: translateY(-3px);
+}
+
+.secondary-btn {
+  border: 2px solid white;
+  padding: 14px 28px;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.secondary-btn:hover {
+  background: white;
+  color: #203a43;
+}
+
+/* ===== FEATURES SECTION ===== */
+
+.features {
+  padding: 80px 60px;
+  background: #f9f9f9;
+  text-align: center;
+}
+
+.features h2 {
+  font-size: 32px;
+  margin-bottom: 50px;
+  color: #203a43;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 30px;
+}
+
+.feature-card {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  transition: 0.3s;
+  text-align: left;
+}
+
+.feature-card h3 {
+  margin-bottom: 15px;
+  color: #0072ff;
+}
+
+.feature-card p {
+  color: #555;
+  line-height: 1.5;
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
+}

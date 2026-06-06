@@ -28,7 +28,7 @@ const OwnerProperties = () => {
           <div
             key={property.id}
             style={{
-              border: "1px solid #ddd",
+              border: "1px solid #8b7c7c",
               padding: "20px",
               borderRadius: "8px",
             }}

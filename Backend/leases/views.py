@@ -1,40 +1,100 @@
-# leases/views.py
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.utils import timezone
+from django.contrib.auth import get_user_model
+
 from .models import Lease
 from .serializers import LeaseSerializer
-from django.utils import timezone
-from rest_framework import status
+
+User = get_user_model()
 
 class LeaseViewSet(viewsets.ModelViewSet):
-    queryset = Lease.objects.all()
     serializer_class = LeaseSerializer
-    permission_classes = [IsAuthenticated]  # ✅ class-based permission
+    permission_classes = [IsAuthenticated]
+
+    # =============================
+    # Queryset Control (SECURE)
+    # =============================
+    def get_queryset(self):
+        user = self.request.user
+
+        base_queryset = Lease.objects.select_related(
+            "unit",
+            "unit__property",
+            "tenant"
+        )
+
+        user_role = getattr(user, "role", None)
+
+        # Tenant → only see their leases
+        if user_role == "TENANT":
+            return base_queryset.filter(tenant=user)
+
+        # Owner → see leases of their properties
+        if user_role == "OWNER":
+            return base_queryset.filter(unit__property__owner=user)
+
+        # Admin → see everything
+        if user_role == "ADMIN":
+            return base_queryset
+
+        # Default fallback (secure)
+        return base_queryset.none()
+
+    # =============================
+    # Create Lease (Overridden for Option B Integration)
+    # =============================
+    def create(self, request, *args, **kwargs):
+        """
+        Allows Owners to send a 'tenant_email' from the frontend instead of an ID.
+        Locates the public user account and maps it directly to the lease payload.
+        """
+        data = request.data.copy()
+        tenant_email = data.get("tenant_email")
+
+        if tenant_email:
+            try:
+                tenant_user = User.objects.get(email__iexact=tenant_email.strip())
+                data["tenant"] = tenant_user.id  # Assign the discovered ID back to standard field
+            except User.DoesNotExist:
+                return Response(
+                    {"error": f"No user account found with the email '{tenant_email}'. Please have the tenant register on the website first."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        # Auto set lease active on creation
-        lease = serializer.save(status="ACTIVE")
-        lease.unit.status = "OCCUPIED"
-        lease.unit.save()
+        # Respect whatever status (ACTIVE or PENDING) is assigned by the owner on the client side
+        # Defaults to PENDING if not specified
+        status_value = self.request.data.get("status", "PENDING")
+        serializer.save(status=status_value)
 
+    # =============================
+    # Update Lease
+    # =============================
     def perform_update(self, serializer):
-        lease = serializer.save()
-        # Update unit status if lease terminated
-        if lease.status == "TERMINATED":
-            lease.unit.status = "VACANT"
-            lease.unit.save()
+        serializer.save()
 
-    # Custom endpoint for tenant-specific leases
-    @action(detail=False, methods=['get'], url_path='tenant')
+    # =============================
+    # Tenant-Specific Endpoint
+    # =============================
+    @action(detail=False, methods=["get"], url_path="tenant")
     def tenant_leases(self, request):
-        leases = Lease.objects.filter(tenant=request.user)
+        leases = self.get_queryset().filter(tenant=request.user)
         serializer = self.get_serializer(leases, many=True)
         return Response(serializer.data)
 
-    # ✅ Terminate Lease Endpoint
-    @action(detail=True, methods=['post'], url_path='terminate')
+    # =============================
+    # Terminate Lease
+    # =============================
+    @action(detail=True, methods=["post"], url_path="terminate")
     def terminate(self, request, pk=None):
         lease = self.get_object()
 
@@ -45,16 +105,25 @@ class LeaseViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Optional: Only owner or admin can terminate
-        if request.user.role not in ["OWNER", "ADMIN"]:
+        user_role = getattr(request.user, "role", None)
+
+        # Only OWNER or ADMIN can terminate
+        if user_role not in ["OWNER", "ADMIN"]:
             return Response(
                 {"error": "You do not have permission to terminate this lease."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Extra security: Owner can only terminate leases of their own properties
+        if user_role == "OWNER" and lease.unit.property.owner != request.user:
+            return Response(
+                {"error": "You can only terminate leases of your own properties."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         lease.status = "TERMINATED"
         lease.end_date = timezone.now().date()
-        lease.save()  # 🔥 This will auto-set unit VACANT from model
+        lease.save()  # Your model save() automatically updates unit to VACANT here
 
         return Response(
             {"message": "Lease terminated successfully."},

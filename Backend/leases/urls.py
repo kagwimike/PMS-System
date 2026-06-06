@@ -1,7 +1,10 @@
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import LeaseViewSet
 
 router = DefaultRouter()
-router.register(r'leases', LeaseViewSet)
+router.register(r'leases', LeaseViewSet, basename='lease')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),
+]

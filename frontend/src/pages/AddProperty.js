@@ -56,7 +56,7 @@ const AddProperty = () => {
 
     const tempId = `new-${Date.now()}`;
     setAmenities([...amenities, { id: tempId, name: trimmed }]);
-    setSelectedAmenities([...selectedAmenities, tempId]);
+    setSelectedAmenities([...selectedAmenities, tempId.toString()]);
     setNewAmenity("");
   };
 
@@ -99,10 +99,13 @@ const AddProperty = () => {
     formData.append("total_units", totalUnits);
     formData.append("description", description);
 
+    // Append multiple amenities cleanly
     selectedAmenities.forEach((id) => formData.append("amenities", id));
+    
+    // Append multiple image files cleanly
     images.forEach((img) => formData.append("images", img));
 
-    // Add units dynamically
+    // Add units dynamically to FormData matching Django's structural expectations
     units.forEach((unit, idx) => {
       Object.keys(unit).forEach((key) => {
         formData.append(`units[${idx}][${key}]`, unit[key]);
@@ -110,6 +113,7 @@ const AddProperty = () => {
     });
 
     try {
+      // API call now automatically includes auth headers via the interceptor
       await API.post("properties/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -117,7 +121,7 @@ const AddProperty = () => {
       setSuccess("Property created successfully!");
       setError("");
 
-      // Reset form
+      // Reset form on success
       setName("");
       setAddress("");
       setPropertyType("APARTMENT");
@@ -130,7 +134,11 @@ const AddProperty = () => {
       setUnits([]);
     } catch (err) {
       console.error("Property creation error:", err.response || err);
-      setError(err.response?.data?.address ? "Address is required" : "Failed to create property");
+      if (err.response?.status === 401) {
+        setError("Your session has expired or you are unauthorized. Please log in again.");
+      } else {
+        setError(err.response?.data?.address ? "Address is required" : "Failed to create property");
+      }
       setSuccess("");
     }
   };
@@ -167,7 +175,12 @@ const AddProperty = () => {
           <div className="amenities-list">
             {amenities.map((a) => (
               <label key={a.id} className="amenity-item">
-                <input type="checkbox" value={a.id} checked={selectedAmenities.includes(a.id.toString())} onChange={handleAmenityChange} />
+                <input 
+                  type="checkbox" 
+                  value={a.id} 
+                  checked={selectedAmenities.includes(a.id.toString())} 
+                  onChange={handleAmenityChange} 
+                />
                 {a.name}
               </label>
             ))}
@@ -185,12 +198,12 @@ const AddProperty = () => {
           <h3>Units</h3>
           {units.map((unit, idx) => (
             <div key={idx} className="unit-item">
-              <input type="text" placeholder="Unit Number" value={unit.unit_number} onChange={(e) => handleUnitChange(idx, "unit_number", e.target.value)} className="form-input" />
+              <input type="text" placeholder="Unit Number" value={unit.unit_number} onChange={(e) => handleUnitChange(idx, "unit_number", e.target.value)} className="form-input" required />
               <input type="number" placeholder="Floor" value={unit.floor} onChange={(e) => handleUnitChange(idx, "floor", e.target.value)} className="form-input" />
               <input type="number" placeholder="Bedrooms" value={unit.bedrooms} onChange={(e) => handleUnitChange(idx, "bedrooms", e.target.value)} className="form-input" />
               <input type="number" placeholder="Window Panes" value={unit.window_panes} onChange={(e) => handleUnitChange(idx, "window_panes", e.target.value)} className="form-input" />
               <input type="number" placeholder="Bulbs" value={unit.bulbs} onChange={(e) => handleUnitChange(idx, "bulbs", e.target.value)} className="form-input" />
-              <input type="number" placeholder="Rent Price" value={unit.rent_price} onChange={(e) => handleUnitChange(idx, "rent_price", e.target.value)} className="form-input" />
+              <input type="number" placeholder="Rent Price" value={unit.rent_price} onChange={(e) => handleUnitChange(idx, "rent_price", e.target.value)} className="form-input" required />
               <button type="button" className="remove-unit-btn" onClick={() => handleRemoveUnit(idx)}>Remove Unit</button>
             </div>
           ))}

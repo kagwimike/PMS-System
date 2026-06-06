@@ -14,4 +14,15 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MaintenanceRequest
-        fields = '__all__'
+        fields = [
+            'id',
+            'title',
+            'status',
+            'priority',
+            'tenant_name',
+            'property_name',
+            'unit_number',
+            'assigned_vendor_name',
+            'created_at',
+            'updated_at'
+        ]

@@ -12,7 +12,7 @@ const Register = () => {
   });
 
   const [message, setMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // toggle password visibility
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -23,22 +23,40 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage(""); // Clear previous messages
+
     try {
       await API.post("accounts/register/", formData);
       setMessage("✅ Registration successful! You can now login.");
     } catch (error) {
-      // Log full backend error to console
-      console.log("Backend validation errors:", error.response?.data);
+      // 1. Check if the server actually responded (Validation/Auth errors)
+      if (error.response) {
+        console.log("Backend validation errors:", error.response.data);
+        
+        // Handle Django Rest Framework standard string errors or object arrays
+        if (typeof error.response.data === "object") {
+          const errors = Object.entries(error.response.data)
+            .map(([field, msgs]) => {
+              const messageText = Array.isArray(msgs) ? msgs.join(", ") : msgs;
+              return `${field}: ${messageText}`;
+            })
+            .join(" | ");
+          setMessage(`❌ Registration failed: ${errors}`);
+        } else {
+          setMessage(`❌ Registration failed: ${error.response.statusText}`);
+        }
 
-      // Show user-friendly message
-      if (error.response?.data) {
-        // Combine all error messages from backend
-        const errors = Object.entries(error.response.data)
-          .map(([field, msgs]) => `${field}: ${msgs.join(", ")}`)
-          .join(" | ");
-        setMessage(`❌ Registration failed: ${errors}`);
+      // 2. Check if the request was made but no response was received (Network/CORS errors)
+      } else if (error.request) {
+        console.error("Network Error Details:", error.request);
+        setMessage(
+          "❌ Network Error: Could not connect to the server. Please check if your backend is running or verify your CORS configuration."
+        );
+
+      // 3. Something else happened setting up the request
       } else {
-        setMessage("❌ Registration failed. Please try again.");
+        console.error("Error setting up request:", error.message);
+        setMessage(`❌ Error: ${error.message}`);
       }
     }
   };
@@ -73,7 +91,7 @@ const Register = () => {
             onChange={handleChange}
           />
 
-          <select name="role" onChange={handleChange}>
+          <select name="role" onChange={handleChange} value={formData.role}>
             <option value="GUEST">Guest</option>
             <option value="TENANT">Tenant</option>
             <option value="OWNER">Owner</option>

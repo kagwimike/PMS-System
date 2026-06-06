@@ -1,15 +1,46 @@
 from pathlib import Path
+from datetime import timedelta
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-SECRET_KEY = 'django-insecure-$2lkzl%o+_=62p@7(icv16#@)q*6&*ykihqhz!u(xj(w-1-l3+'
+# -----------------------------
+# CORE SETTINGS
+# -----------------------------
+SECRET_KEY = 'django-insecure-change-this-in-production'
 DEBUG = True
-ALLOWED_HOSTS = []
 
-# Application definition
+# Explicitly allow localhost and loopback for local development
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+
+# CHANGE THIS: Match your actual project folder name (the directory containing urls.py and wsgi.py)
+# If your project folder is named 'core' or 'backend', change 'myproject' to that name.
+ROOT_URLCONF = 'PMS.urls'
+WSGI_APPLICATION = 'PMS.wsgi.application'
+
+# -----------------------------
+# CORS SETTINGS (Crucial for React Frontend)
+# -----------------------------
+# This permits your React application to make registration requests safely
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+# Alternative fallback option for dev if ports change frequently:
+# CORS_ALLOW_ALL_ORIGINS = True 
+
+# -----------------------------
+# CUSTOM USER MODEL (Crucial for Foreign Keys)
+# -----------------------------
+AUTH_USER_MODEL = "accounts.User"
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# -----------------------------
+# APPLICATIONS
+# -----------------------------
 INSTALLED_APPS = [
+    # 1. Custom User App MUST be at the top to avoid Migration Errors
+    'accounts', 
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -17,11 +48,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # Third-party
     'rest_framework',
-    'rest_framework_simplejwt',
+    'rest_framework.authtoken',
     'django_filters',
     'corsheaders',
-    'accounts',
+    'channels',
+    'social_django',
+
+    # Local apps
     'properties',
     'units',
     'bookings',
@@ -30,25 +65,15 @@ INSTALLED_APPS = [
     'leases',
     'tenants',
     'inspections',
-    'channels',
     'maintenance',
     'notifications',
-
-    'social_django',  # added for Google OAuth2
 ]
 
-# Channels / Redis
-ASGI_APPLICATION = 'PMS.asgi.application'
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {'hosts': [('127.0.0.1', 6379)]},
-    },
-}
-
-# Middleware
+# -----------------------------
+# MIDDLEWARE
+# -----------------------------
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Placed at the top for preflights
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -56,105 +81,92 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware', 
 ]
 
-ROOT_URLCONF = 'PMS.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',  # required for social-auth
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'social_django.context_processors.backends',   # social-auth
-                'social_django.context_processors.login_redirect',  # social-auth
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = 'PMS.wsgi.application'
-
-# Database
+# -----------------------------
+# DATABASE (MySQL / MariaDB Fix)
+# -----------------------------
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'pms_db',
         'USER': 'root',
         'PASSWORD': '',
-        'HOST': 'localhost',
+        'HOST': '127.0.0.1',
         'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine=InnoDB",
+            'charset': 'utf8mb4',
+        },
     }
 }
 
-# Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
-]
-
-# Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-
-# Static & media files
-STATIC_URL = 'static/'
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-# CORS
-CORS_ALLOW_ALL_ORIGINS = True
-
-# Custom User model
-AUTH_USER_MODEL = "accounts.User"
-
-# REST Framework
+# -----------------------------
+# DJANGO REST FRAMEWORK
+# -----------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication', 
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend'
-    ]
+    ],
 }
 
 # -----------------------------
-# Social Auth (Google OAuth2)
+# SOCIAL AUTH (GOOGLE)
 # -----------------------------
 AUTHENTICATION_BACKENDS = (
-    'social_core.backends.google.GoogleOAuth2',  # Google OAuth2
-    'django.contrib.auth.backends.ModelBackend', # Django auth
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
 )
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = "<YOUR_GOOGLE_CLIENT_ID>"
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = "<YOUR_GOOGLE_CLIENT_SECRET>"
 
-# Redirect URL after Google login
-SOCIAL_AUTH_REDIRECT_URI = "http://localhost:8000/accounts/oauth/callback/google/"
+SOCIAL_AUTH_USER_MODEL = 'accounts.User' 
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
 
-# User creation pipeline
-SOCIAL_AUTH_PIPELINE = (
-    'social_core.pipeline.social_auth.social_details',
-    'social_core.pipeline.social_auth.social_uid',
-    'social_core.pipeline.social_auth.auth_allowed',
-    'social_core.pipeline.social_auth.social_user',
-    'social_core.pipeline.user.get_username',
-    'social_core.pipeline.user.create_user',   # create user if not exist
-    'social_core.pipeline.social_auth.associate_user',
-    'social_core.pipeline.social_auth.load_extra_data',
-    'social_core.pipeline.user.user_details',
-)
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
-SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name', 'email']
+# -----------------------------
+# TEMPLATES
+# -----------------------------
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'], 
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
+            ],
+        },
+    },
+]
+
+# -----------------------------
+# STATIC FILES
+# -----------------------------
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# -----------------------------
+# MEDIA FILES
+# -----------------------------
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'

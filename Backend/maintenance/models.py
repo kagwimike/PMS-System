@@ -8,6 +8,13 @@ STATUS_CHOICES = [
     ('CANCELLED', 'Cancelled'),
 ]
 
+PRIORITY_CHOICES = [
+    ('LOW', 'Low'),
+    ('MEDIUM', 'Medium'),
+    ('HIGH', 'High'),
+    ('URGENT', 'Urgent'),
+]
+
 class Vendor(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField()
@@ -24,16 +31,17 @@ class MaintenanceRequest(models.Model):
         related_name='maintenance_requests'
     )
     property = models.ForeignKey(
-        "properties.Property",  # Use string reference
+        "properties.Property",
         on_delete=models.CASCADE
     )
     unit = models.ForeignKey(
-        "units.Unit",  # Use string reference
+        "units.Unit",
         on_delete=models.CASCADE
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
     assigned_vendor = models.ForeignKey(
         Vendor, 
         on_delete=models.SET_NULL, 

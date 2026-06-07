@@ -13,20 +13,16 @@ DEBUG = True
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 # CHANGE THIS: Match your actual project folder name (the directory containing urls.py and wsgi.py)
-# If your project folder is named 'core' or 'backend', change 'myproject' to that name.
 ROOT_URLCONF = 'PMS.urls'
 WSGI_APPLICATION = 'PMS.wsgi.application'
 
 # -----------------------------
 # CORS SETTINGS (Crucial for React Frontend)
 # -----------------------------
-# This permits your React application to make registration requests safely
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-# Alternative fallback option for dev if ports change frequently:
-# CORS_ALLOW_ALL_ORIGINS = True 
 
 # -----------------------------
 # CUSTOM USER MODEL (Crucial for Foreign Keys)
@@ -66,7 +62,7 @@ INSTALLED_APPS = [
     'tenants',
     'inspections',
     'maintenance',
-    'notifications',
+    'notifications',  # Registered and ready to use
 ]
 
 # -----------------------------
@@ -170,3 +166,21 @@ STATICFILES_DIRS = [
 # -----------------------------
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# -----------------------------
+# EMAIL NOTIFICATION CONFIGURATION
+# -----------------------------
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'myke50994@gmail.com'       # <--- EDIT THIS STRING
+EMAIL_HOST_PASSWORD = 'jfsv jdvy mgat ghva'           # <--- EDIT THIS (16-char App Password)
+DEFAULT_FROM_EMAIL = f"Property Manager <{EMAIL_HOST_USER}>"
+
+# -----------------------------
+# TWILIO SMS CONFIGURATION
+# -----------------------------
+TWILIO_ACCOUNT_SID = 'ACxxxxxxxxxxxxxxxxxxxxxxxx'     # <--- EDIT THIS FROM TWILIO CONSOLE
+TWILIO_AUTH_TOKEN = 'your_actual_auth_token_here'     # <--- EDIT THIS FROM TWILIO CONSOLE
+TWILIO_PHONE_NUMBER = '+1XXXXXXXXXX'                  # <--- EDIT THIS TO YOUR TWILIO NUMBER

@@ -5,63 +5,64 @@ import "../styles/Maintenance.css";
 const MaintenanceForm = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [properties, setProperties] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [selectedProperty, setSelectedProperty] = useState("");
-  const [selectedUnit, setSelectedUnit] = useState("");
+  
+  // Track automated lease details from backend instead of raw property arrays
+  const [tenantLease, setTenantLease] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
+  // Fetch the logged-in tenant's active lease profile data on mount
   useEffect(() => {
-    const fetchProperties = async () => {
+    const fetchTenantLeaseData = async () => {
       try {
-        const res = await API.get("properties/");
-        setProperties(res.data);
+        const res = await API.get("leases/tenant/");
+        
+        if (res.data && res.data.length > 0) {
+          // Find their active lease row configuration layout
+          const activeLeaseRow = res.data.find((l) => l.status === "ACTIVE");
+          if (activeLeaseRow) {
+            setTenantLease(activeLeaseRow);
+          }
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Error retrieving tenant lease details:", err);
+        setError("Could not load your property assignment profile details.");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchProperties();
+    fetchTenantLeaseData();
   }, []);
-
-  useEffect(() => {
-    const fetchUnits = async () => {
-      if (!selectedProperty) return;
-      try {
-        const res = await API.get(`units/?property=${selectedProperty}`);
-        setUnits(res.data.filter((u) => u.status === "VACANT"));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchUnits();
-  }, [selectedProperty]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title || !description || !selectedProperty || !selectedUnit) {
-      setError("Please fill all fields");
+    
+    if (!title || !description) {
+      setError("Please complete all requested data fields.");
       return;
     }
 
     try {
-      await API.post("maintenance/requests/", {
+      // Clean payload payload targeting your exact view path: 'maintenance/'
+      await API.post("maintenance/", {
         title,
         description,
-        property: selectedProperty,
-        unit: selectedUnit,
+        // Backend handles auto-mapping property/unit IDs dynamically via request user session!
       });
-      setSuccess("Maintenance request created!");
+
+      setSuccess("Maintenance request submitted successfully!");
       setError("");
       setTitle("");
       setDescription("");
-      setSelectedProperty("");
-      setSelectedUnit("");
     } catch (err) {
       console.error(err);
-      setError("Failed to create request");
+      setError(err.response?.data?.error || "Failed to submit maintenance request.");
     }
   };
+
+  if (loading) return <div className="maintenance-form"><p>Verifying residency records...</p></div>;
 
   return (
     <div className="maintenance-form">
@@ -69,41 +70,47 @@ const MaintenanceForm = () => {
       {success && <p className="success">{success}</p>}
       {error && <p className="error">{error}</p>}
 
+      {/* Automated Location Preview Block instead of blank dropdown selections */}
+      <div className="tenant-location-badge" style={{
+        padding: "12px", 
+        background: "#f4f6f9", 
+        borderRadius: "6px", 
+        marginBottom: "15px",
+        borderLeft: "4px solid #007bff",
+        fontSize: "14px"
+      }}>
+        {tenantLease ? (
+          <>
+            <p style={{ margin: "0 0 5px 0" }}><strong>Property:</strong> {tenantLease.property_name}</p>
+            <p style={{ margin: "0" }}><strong>Your Unit:</strong> {tenantLease.unit_number}</p>
+          </>
+        ) : (
+          <p style={{ margin: "0", color: "#dc3545" }}>
+            ⚠️ No running active lease profile found. Please contact administration.
+          </p>
+        )}
+      </div>
+
       <form onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Title"
+          placeholder="What is the issue? (e.g., Water heater not running)"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
+          disabled={!tenantLease} // Block submission if they have no active space mapped
         />
         <textarea
-          placeholder="Description"
+          placeholder="Please describe details or location of the maintenance issue..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           required
+          disabled={!tenantLease}
         />
-        <select
-          value={selectedProperty}
-          onChange={(e) => setSelectedProperty(e.target.value)}
-          required
-        >
-          <option value="">Select Property</option>
-          {properties.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <select
-          value={selectedUnit}
-          onChange={(e) => setSelectedUnit(e.target.value)}
-          required
-        >
-          <option value="">Select Unit</option>
-          {units.map((u) => (
-            <option key={u.id} value={u.id}>{u.unit_number}</option>
-          ))}
-        </select>
-        <button type="submit">Submit Request</button>
+        
+        <button type="submit" disabled={!tenantLease}>
+          Submit Request
+        </button>
       </form>
     </div>
   );

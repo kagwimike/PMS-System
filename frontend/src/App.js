@@ -6,7 +6,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
-import OwnerDashboard from "./pages/OwnerDashboard";
+import OwnerDashboard from "./pages/OwnerDashboard"; // Webpack looks for default export here
 import TenantDashboard from "./pages/TenantDashboard";
 import OwnerProperties from "./pages/OwnerProperties";
 import AddProperty from "./pages/AddProperty";
@@ -46,6 +46,7 @@ function App() {
 
   return (
     <Router>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       <Navbar />
       <Routes>
         <Route path="/properties" element={<PropertyList />} />
@@ -60,31 +61,24 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/owner/properties" element={<OwnerProperties />} />
         <Route path="/owner/add-property" element={<AddProperty />} />
-        <Route path="/maintenance" element={<MaintenanceDashboard />} />
         <Route path="/maintenance/new" element={<MaintenanceForm />} />
         <Route path="/about" element={<About />} />
-       
-
 
         {/* ================= Maintenance & Vendors ================= */}
-
-{user?.role === "OWNER" || user?.role === "ADMIN" ? (
-  <>
-    <Route path="/maintenance" element={<MaintenanceVendorDashboard />} />
-    {/* <Route path="/maintenance/new" element={<MaintenanceForm />} /> */}
-    <Route path="/vendors" element={<VendorDashboard />} />
-  </>
-) : (
-  <>
-    {/* Tenants can only view maintenance (read-only) */}
-    <Route
-      path="/maintenance"
-      element={<MaintenanceDashboard readOnly={true} />}
-    />
-  </>
-)}
-
-
+        {user?.role === "OWNER" || user?.role === "ADMIN" ? (
+          <>
+            <Route path="/maintenance" element={<MaintenanceVendorDashboard />} />
+            <Route path="/vendors" element={<VendorDashboard />} />
+          </>
+        ) : (
+          <>
+            {/* Tenants can only view maintenance (read-only) */}
+            <Route
+              path="/maintenance"
+              element={<MaintenanceDashboard readOnly={true} />}
+            />
+          </>
+        )}
 
         {/* Conditional routes for inspections & damage */}
         {user?.role === "OWNER" || user?.role === "ADMIN" ? adminRoutes : tenantRoutes}
@@ -92,10 +86,9 @@ function App() {
         {/* Fallback for unmatched routes */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-      
       <Footer />
     </Router>
   );
 }
 
-export default App; 
+export default App;

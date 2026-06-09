@@ -35,8 +35,9 @@ const Login = () => {
   // ---------------------------
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      const res = await API.post("accounts/login/google/", {
-        access_token: credentialResponse.credential,
+      // ✅ Updated path to accounts/auth/google/ and payload key to 'token'
+      const res = await API.post("accounts/auth/google/", {
+        token: credentialResponse.credential,
       });
 
       const { access, refresh, user } = res.data;
@@ -47,14 +48,15 @@ const Login = () => {
 
       redirectByRole(user.role);
     } catch (err) {
-      setError("Google login failed");
+      console.error("Google Auth Backend Verification Error:", err);
+      setError(err.response?.data?.error || "Google login failed verification on backend");
     }
   };
 
   const redirectByRole = (role) => {
     const upperRole = role.toUpperCase();
     if (upperRole === "ADMIN") navigate("/admin");
-    else if (upperRole === "OWNER") navigate("/owner");
+    else if (upperRole === "OWNER" || upperRole === "LANDLORD") navigate("/owner"); // ✅ Added landlord fallback just in case
     else if (upperRole === "TENANT") navigate("/tenant");
     else navigate("/");
   };
@@ -95,10 +97,12 @@ const Login = () => {
 
       <div className="divider">OR</div>
 
-      <GoogleLogin
-        onSuccess={handleGoogleSuccess}
-        onError={() => setError("Google login failed")}
-      />
+      <div className="google-btn-wrapper" style={{ display: "flex", justifyContent: "center" }}>
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => setError("Google login initialization failed")}
+        />
+      </div>
     </div>
   );
 };

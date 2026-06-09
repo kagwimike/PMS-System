@@ -60,7 +60,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        status_value = self.request.data.get("status", "PENDING")
+        status_value = self.request.data.get("status", "ACTIVE")
         serializer.save(status=status_value)
 
     def perform_update(self, serializer):

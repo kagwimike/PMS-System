@@ -2,8 +2,7 @@ from django.urls import path
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
-    GoogleLoginView,
-    GoogleOAuthCallbackView
+    GoogleTokenSignInView  # ✅ Imported our new streamlined verification view
 )
 
 urlpatterns = [
@@ -14,8 +13,8 @@ urlpatterns = [
     path('login/', CustomTokenObtainPairView.as_view(), name='login'),  # Standard login (JWT)
 
     # ---------------------------
-    # Google OAuth2 endpoints
+    # Google OAuth2 Endpoint
     # ---------------------------
-    path('login/google/', GoogleLoginView.as_view(), name='google-login'),  # Redirects user to Google consent screen
-    path('oauth/callback/google/', GoogleOAuthCallbackView.as_view(), name='google-callback'),  # Google redirect URI after login
+    # ✅ Processes the direct JSON Web Token (ID token) received from the React frontend wrapper
+    path('auth/google/', GoogleTokenSignInView.as_view(), name='google-token-signin'),
 ]

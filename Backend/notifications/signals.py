@@ -52,3 +52,16 @@ def dispatch_lease_lifecycle_notifications(sender, instance, created, **kwargs):
         if tenant_phone:
             sms_msg = f"Notice: Your lease status for Unit {unit_number} at {property_name} has been updated to TERMINATED."
             send_tenant_sms(sms_msg, tenant_phone)
+
+
+@receiver(post_save, sender='leases.Lease')
+def dispatch_lease_lifecycle_notifications(sender, instance, created, **kwargs):
+    # ADD THIS PRINT LINE TO VERIFY THE TRIGGER FIRES:
+    print(f"!!! SIGNAL DETECTED !!! Lease ID: {instance.id}, Status: {instance.status}, Created Flag: {created}")
+    
+    tenant = instance.tenant
+    if not tenant:
+        print("!!! SIGNAL EXIT !!! No tenant attached to this lease record.")
+        return
+        
+    # ... rest of your signal code ...

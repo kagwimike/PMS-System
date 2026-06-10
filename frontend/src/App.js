@@ -25,6 +25,7 @@ import Footer from "./components/Footer";
 import PropertyList from "./pages/PropertyList";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import TenantInvoices from "./components/TenantInvoices";
 
 function App() {
   // Get user from localStorage (or use context if you have it)
@@ -62,6 +63,7 @@ function App() {
         <Route path="/owner/properties" element={<OwnerProperties />} />
         <Route path="/owner/add-property" element={<AddProperty />} />
         <Route path="/maintenance/new" element={<MaintenanceForm />} />
+        <Route path="/tenant/billing" element={<TenantInvoices />} />
         <Route path="/about" element={<About />} />
 
         {/* ================= Maintenance & Vendors ================= */}

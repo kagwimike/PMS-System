@@ -10,7 +10,8 @@ import {
   FaTrash, 
   FaPlus, 
   FaTools, 
-  FaUserTie 
+  FaUserTie,
+  FaExclamationTriangle
 } from "react-icons/fa";
 import "../styles/OwnerDashboard.css";
 
@@ -23,12 +24,14 @@ const OwnerDashboard = () => {
   const [error, setError] = useState("");
   
   const [selectedProperty, setSelectedProperty] = useState(null);
+  
+  // Local states to track separate selections per request item row 
+  const [selectedPriorities, setSelectedPriorities] = useState({});
 
-  // Defensive, segmented data-fetching strategy
   const fetchDashboardData = async () => {
     setLoading(true);
     
-    // 1. Fetch CRITICAL baseline data (Dashboard crashes only if these fail)
+    // 1. Fetch CRITICAL baseline data
     try {
       const [propRes, leaseRes] = await Promise.all([
         API.get("properties/"),
@@ -44,10 +47,9 @@ const OwnerDashboard = () => {
       return; 
     }
 
-    // 2. Fetch maintenance tickets independently with standard/paginated array checking
+    // 2. Fetch maintenance tickets dynamically mapped via DRF DefaultRouter
     try {
       const maintRes = await API.get("maintenance/requests/");
-      
       if (Array.isArray(maintRes.data)) {
         setMaintenanceRequests(maintRes.data);
       } else if (maintRes.data && Array.isArray(maintRes.data.results)) {
@@ -60,10 +62,9 @@ const OwnerDashboard = () => {
       setMaintenanceRequests([]); 
     }
 
-    // 3. Fetch vendor list independently with standard/paginated array checking
+    // 3. Fetch vendor list independently
     try {
       const vendorRes = await API.get("maintenance/vendors/");
-      
       if (Array.isArray(vendorRes.data)) {
         setVendors(vendorRes.data);
       } else if (vendorRes.data && Array.isArray(vendorRes.data.results)) {
@@ -83,7 +84,6 @@ const OwnerDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  /* ================= LEASE TERMINATION HANDLER ================= */
   const handleTerminateLease = async (leaseId) => {
     if (!window.confirm("Are you sure you want to terminate this tenant's lease? This will update their unit status back to VACANT.")) {
       return;
@@ -96,14 +96,21 @@ const OwnerDashboard = () => {
     }
   };
 
-  /* ================= VENDOR ASSIGNMENT PATCH HANDLER ================= */
+  /* ================= UPDATED VENDOR ASSIGNMENT ACTION HANDLER ================= */
   const handleAssignVendor = async (requestId, vendorId) => {
+    if (!vendorId) return; // Prevent empty placeholder execution
+
+    // Safely look up chosen urgency index local state context row, default to MEDIUM
+    const priority = selectedPriorities[requestId] || "MEDIUM";
+
     try {
-      // Fixed endpoint route matching the Django DefaultRouter requests architecture
-      await API.patch(`maintenance/requests/${requestId}/`, {
-        assigned_vendor: vendorId || null,
-        status: vendorId ? "IN_PROGRESS" : "PENDING"
+      // ✅ Now correctly routes to: POST /api/maintenance/requests/<id>/assign/
+      await API.post(`maintenance/requests/${requestId}/assign/`, {
+        vendor_id: vendorId,
+        priority: priority
       });
+      
+      alert("Vendor dispatched successfully!");
       fetchDashboardData(); 
     } catch (err) {
       console.error("Failed to assign vendor:", err.response?.data);
@@ -221,32 +228,60 @@ const OwnerDashboard = () => {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", minWidth: "220px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", minWidth: "240px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: "13px", fontWeight: "600" }}>Status:</span>
                     <span style={{
                       padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold",
-                      background: ticket.status === "COMPLETED" ? "#dcfce7" : ticket.status === "IN_PROGRESS" ? "#fef9c3" : "#fee2e2",
-                      color: ticket.status === "COMPLETED" ? "#166534" : ticket.status === "IN_PROGRESS" ? "#854d0e" : "#991b1b"
+                      background: ticket.status === "VERIFIED" || ticket.status === "COMPLETED" ? "#dcfce7" : ticket.status === "IN_PROGRESS" ? "#fef9c3" : "#fee2e2",
+                      color: ticket.status === "VERIFIED" || ticket.status === "COMPLETED" ? "#166534" : ticket.status === "IN_PROGRESS" ? "#854d0e" : "#991b1b"
                     }}>{ticket.status}</span>
                   </div>
 
-                  {/* Vendor Assignment Dropdown Selector */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <label style={{ fontSize: "12px", color: "#475569", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px" }}>
-                      <FaUserTie size={11} /> Dispatch Specialized Vendor:
-                    </label>
-                    <select
-                      value={ticket.assigned_vendor || ""}
-                      onChange={(e) => handleAssignVendor(ticket.id, e.target.value)}
-                      style={{ padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff", cursor: "pointer" }}
-                    >
-                      <option value="">-- Assign Vendor --</option>
-                      {vendors.map((v) => (
-                        <option key={v.id} value={v.id}>{v.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {ticket.status === "PENDING" ? (
+                    <>
+                      {/* 1. Urgency Level Matrix Select Dropdown */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <label style={{ fontSize: "12px", color: "#475569", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <FaExclamationTriangle size={11} /> Urgency Metric:
+                        </label>
+                        <select
+                          value={selectedPriorities[ticket.id] || "MEDIUM"}
+                          onChange={(e) => setSelectedPriorities({ ...selectedPriorities, [ticket.id]: e.target.value })}
+                          style={{ padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px" }}
+                        >
+                          <option value="LOW">Low</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HIGH">High</option>
+                          <option value="URGENT">Urgent</option>
+                        </select>
+                      </div>
+
+                      {/* 2. Vendor Assignment Trigger Dropdown Selector */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <label style={{ fontSize: "12px", color: "#475569", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <FaUserTie size={11} /> Dispatch Specialized Vendor:
+                        </label>
+                        <select
+                          value={ticket.assigned_vendor || ""}
+                          onChange={(e) => handleAssignVendor(ticket.id, e.target.value)}
+                          style={{ padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff", cursor: "pointer" }}
+                        >
+                          <option value="">-- Select Vendor to Dispatch --</option>
+                          {vendors.map((v) => (
+                            <option key={v.id} value={v.id}>{v.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "4px", border: "1px solid #e2e8f0", marginTop: "5px" }}>
+                      <span style={{ fontSize: "13px", color: "#334155", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <FaUserTie size={12} color="#64748b" /> 
+                        <strong>Dispatched:</strong> {ticket.assigned_vendor_name || "Active Worker"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

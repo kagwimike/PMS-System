@@ -8,6 +8,8 @@ class NotificationsConfig(AppConfig):
     def ready(self):
         """
         Overridden execution block that imports signals on application startup.
-        This ensures our Lease lifecycle listeners are actively listening to model events.
+        This ensures both our Lease lifecycle listeners and Maintenance Vendor
+        dispatch listeners are registered and actively listening to model events.
         """
+        # ✅ Automatically hooks up your entire consolidated automation ecosystem on server boot
         import notifications.signals

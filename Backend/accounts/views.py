@@ -49,6 +49,9 @@ class GoogleTokenSignInView(generics.GenericAPIView):
     - Returns system JWT & role info
     """
     permission_classes = [AllowAny]
+    # 🚨 FIXES THE 401 token_not_valid ERROR:
+    # Tells SimpleJWT middleware not to guard this specific authentication endpoint.
+    authentication_classes = [] 
 
     def post(self, request):
         # Expecting {"token": "eyJhbG..."} payload from React frontend
@@ -60,9 +63,12 @@ class GoogleTokenSignInView(generics.GenericAPIView):
             # 1. Safely pull your Client ID string out of settings.py
             client_id = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_KEY', None)
             
-            # Defensive check: if settings key is missing or unconfigured template string, apply backup
-            if not client_id or "<YOUR_GOOGLE_CLIENT_ID>" in client_id:
-                client_id = "239105933863-uarm1uqc28mk9us460kr0tm9r3fv46po.apps.googleusercontent.com"
+            # Target active live client ID explicitly
+            live_client_id = "239105933863-uarm1uqc28mk9us460kr0tm9r3fv46po.apps.googleusercontent.com"
+            
+            # Defensive check: Ensure we do not use an invalid, stale, or empty template string
+            if not client_id or "YOUR_GOOGLE_CLIENT_ID" in str(client_id) or client_id != live_client_id:
+                client_id = live_client_id
 
             # 2. Verify token signature natively using Google public verification handshakes
             idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
@@ -81,7 +87,7 @@ class GoogleTokenSignInView(generics.GenericAPIView):
                     "username": email.split("@")[0],
                     "first_name": first_name,
                     "last_name": last_name,
-                    "role": "LANDLORD",  # Landlords manage properties and dispatch vendors
+                    "role": "LANDLORD",  # Default role for your workspace access
                 }
             )
 
@@ -102,11 +108,15 @@ class GoogleTokenSignInView(generics.GenericAPIView):
 
         except ValueError as e:
             # Logs structural issues like token expiration or mismatched audience string (aud)
-            logger.error(f"Google Token verification exception: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Google Token verification exception: {error_msg}")
+            
+            # Return a detailed response so you can catch exactly why verification failed
             return Response({
                 'error': 'Invalid or compromised token payload authentication validation.',
-                'details': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'details': error_msg,
+                'hint': 'Verify your local clock is synced or check if CLIENT_ID matches exactly.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
             
         except Exception as e:
             logger.error(f"Unexpected error encountered during login handshake: {str(e)}")

@@ -122,6 +122,28 @@ const Navbar = () => {
               </>
             )}
 
+            {/* 💳 💳 NEW PAYMENTS & FINANCIALS ENGINE SECTION */}
+            <h4>Financials</h4>
+            {user.role === "TENANT" ? (
+              <>
+                <Link to="/tenant/billing" onClick={() => setMenuOpen(false)}>
+                  My Invoices & Rent
+                </Link>
+                <Link to="/payment-history" onClick={() => setMenuOpen(false)}>
+                  Payment History
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/owner/invoices" onClick={() => setMenuOpen(false)}>
+                  Global Invoices
+                </Link>
+                <Link to="/payment-history" onClick={() => setMenuOpen(false)}>
+                  Collected Payments
+                </Link>
+              </>
+            )}
+
             <h4>Inspections</h4>
             <Link to="/inspections" onClick={() => setMenuOpen(false)}>
               View Inspections
@@ -157,7 +179,7 @@ const Navbar = () => {
               </>
             )}
 
-            {/* 🔹 New Section */}
+            {/* 🔹 Company Info */}
             <h4>Company</h4>
             <Link to="/about" onClick={() => setMenuOpen(false)}>
               About PMS Pro
@@ -184,4 +206,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

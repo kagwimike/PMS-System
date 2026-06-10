@@ -33,15 +33,14 @@ const Login = () => {
   // ---------------------------
   // Google OAuth2 login
   // ---------------------------
+  // Inside Login.js
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      // ✅ Updated path to accounts/auth/google/ and payload key to 'token'
       const res = await API.post("accounts/auth/google/", {
         token: credentialResponse.credential,
       });
 
       const { access, refresh, user } = res.data;
-
       localStorage.setItem("access_token", access);
       localStorage.setItem("refresh_token", refresh);
       localStorage.setItem("user", JSON.stringify(user));
@@ -49,10 +48,17 @@ const Login = () => {
       redirectByRole(user.role);
     } catch (err) {
       console.error("Google Auth Backend Verification Error:", err);
-      setError(err.response?.data?.error || "Google login failed verification on backend");
+      
+      // 👇 ADD THIS LOG LINE TO SEE THE EXACT ERROR FROM DJANGO:
+      if (err.response && err.response.data) {
+        console.log("👉 EXACT BACKEND ERROR DETAILS:", err.response.data);
+        setError(`Backend Error: ${err.response.data.details || "Unauthorized"}`);
+      } else {
+        setError("Google login failed verification on backend");
+      }
     }
   };
-
+  
   const redirectByRole = (role) => {
     const upperRole = role.toUpperCase();
     if (upperRole === "ADMIN") navigate("/admin");

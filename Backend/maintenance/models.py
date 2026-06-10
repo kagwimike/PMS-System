@@ -4,7 +4,8 @@ from django.conf import settings
 STATUS_CHOICES = [
     ('PENDING', 'Pending'),
     ('IN_PROGRESS', 'In Progress'),
-    ('COMPLETED', 'Completed'),
+    ('COMPLETED', 'Completed by Vendor'),  # Vendor clicks this
+    ('VERIFIED', 'Verified & Closed'),     # ✅ Tenant confirms this, triggers email
     ('CANCELLED', 'Cancelled'),
 ]
 
@@ -24,6 +25,7 @@ class Vendor(models.Model):
     def __str__(self):
         return self.name
 
+
 class MaintenanceRequest(models.Model):
     tenant = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
@@ -40,6 +42,10 @@ class MaintenanceRequest(models.Model):
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
+    
+    # ✅ Handles image uploads safely
+    damage_photo = models.ImageField(upload_to='maintenance_photos/', null=True, blank=True)
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
     assigned_vendor = models.ForeignKey(
@@ -48,8 +54,16 @@ class MaintenanceRequest(models.Model):
         null=True, 
         blank=True
     )
+    
+    # ✅ Tracking metrics for Vendor completions
+    vendor_notes = models.TextField(blank=True, null=True)
+    vendor_completed_at = models.DateTimeField(blank=True, null=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']  # Keeps newest requests on top of the dashboard list view
 
     def __str__(self):
         return f"{self.title} ({self.status})"

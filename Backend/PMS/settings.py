@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from datetime import timedelta
 
@@ -9,8 +10,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-change-this-in-production'
 DEBUG = True
 
-# Explicitly allow localhost and loopback for local development
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+# ✅ UPDATED: Added your live localtunnel proxy domain link along with generic handlers
+ALLOWED_HOSTS = [
+    '127.0.0.1', 
+    'localhost',
+    'huge-pandas-fry.loca.lt',  # 🚀 Active LocalTunnel Bridge
+    '.ngrok-free.app',         # Fallback handler for ngrok
+    '.localtunnel.me',         # Fallback handler for standard localtunnel.me top levels
+]
 
 # CHANGE THIS: Match your actual project folder name (the directory containing urls.py and wsgi.py)
 ROOT_URLCONF = 'PMS.urls'
@@ -23,6 +30,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# Optional: If your React app tests directly via the proxy tunnel domain link
+CORS_ALLOW_ALL_ORIGINS = True  
 
 # -----------------------------
 # CUSTOM USER MODEL (Crucial for Foreign Keys)
@@ -62,7 +72,7 @@ INSTALLED_APPS = [
     'tenants',
     'inspections',
     'maintenance',
-    'notifications',  # Registered and ready to use
+    'notifications',  
 ]
 
 # -----------------------------
@@ -174,13 +184,27 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'myke50994@gmail.com'       # <--- EDIT THIS STRING
-EMAIL_HOST_PASSWORD = 'jfsv jdvy mgat ghva'           # <--- EDIT THIS (16-char App Password)
+EMAIL_HOST_USER = 'myke50994@gmail.com'       
+EMAIL_HOST_PASSWORD = 'jfsv jdvy mgat ghva'          
 DEFAULT_FROM_EMAIL = f"Property Manager <{EMAIL_HOST_USER}>"
 
 # -----------------------------
 # TWILIO SMS CONFIGURATION
 # -----------------------------
-TWILIO_ACCOUNT_SID = 'ACxxxxxxxxxxxxxxxxxxxxxxxx'     # <--- EDIT THIS FROM TWILIO CONSOLE
-TWILIO_AUTH_TOKEN = 'your_actual_auth_token_here'     # <--- EDIT THIS FROM TWILIO CONSOLE
-TWILIO_PHONE_NUMBER = '+1XXXXXXXXXX'                  # <--- EDIT THIS TO YOUR TWILIO NUMBER
+TWILIO_ACCOUNT_SID = 'ACxxxxxxxxxxxxxxxxxxxxxxxx'     
+TWILIO_AUTH_TOKEN = 'your_actual_auth_token_here'     
+TWILIO_PHONE_NUMBER = '+1XXXXXXXXXX'                  
+
+# -----------------------------
+# 💳 SAFARICOM DARAJA M-PESA CONFIGURATION
+# -----------------------------
+MPESA_ENVIRONMENT = "sandbox"
+MPESA_SHORTCODE = "174379"  
+MPESA_PASSKEY = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+
+# ✅ Real credentials pasted from your Daraja Portal App profile
+MPESA_CONSUMER_KEY = "djUKwYy0R29fupiQ4qQ5AmPa2jgeAHRtSifh8bi5IvG4w1FX"
+MPESA_CONSUMER_SECRET = "hro13qz8ThQ22sOFGfjBioxuoMIZb15rNksdBsMoWqxUOWG3vvnEO9gydNRTKdYQ"
+
+# ✅ Configured dynamically with your active LocalTunnel link
+MPESA_CALLBACK_URL = "https://huge-pandas-fry.loca.lt/api/payments/mpesa-callback/"

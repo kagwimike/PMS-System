@@ -28,6 +28,9 @@ const OwnerDashboard = () => {
   // Local states to track separate selections per request item row 
   const [selectedPriorities, setSelectedPriorities] = useState({});
 
+  // Asynchronous operational blocker flag to stop double-execution
+  const [actionLoading, setActionLoading] = useState(false);
+
   const fetchDashboardData = async () => {
     setLoading(true);
     
@@ -85,36 +88,44 @@ const OwnerDashboard = () => {
   }, []);
 
   const handleTerminateLease = async (leaseId) => {
+    if (actionLoading) return;
     if (!window.confirm("Are you sure you want to terminate this tenant's lease? This will update their unit status back to VACANT.")) {
       return;
     }
+
+    setActionLoading(true);
     try {
       await API.post(`/leases/${leaseId}/terminate/`);
-      fetchDashboardData(); 
+      await fetchDashboardData(); 
     } catch (error) {
       alert(error.response?.data?.error || "Failed to terminate lease.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  /* ================= UPDATED VENDOR ASSIGNMENT ACTION HANDLER ================= */
+  /* ================= FIXED VENDOR ASSIGNMENT ACTION HANDLER ================= */
   const handleAssignVendor = async (requestId, vendorId) => {
-    if (!vendorId) return; // Prevent empty placeholder execution
+    if (!vendorId || actionLoading) return; 
 
     // Safely look up chosen urgency index local state context row, default to MEDIUM
     const priority = selectedPriorities[requestId] || "MEDIUM";
 
+    setActionLoading(true);
     try {
-      // ✅ Now correctly routes to: POST /api/maintenance/requests/<id>/assign/
+      // Key updated to 'vendor' to satisfy the Django Viewset validation rule cleanly
       await API.post(`maintenance/requests/${requestId}/assign/`, {
-        vendor_id: vendorId,
+        vendor: vendorId,
         priority: priority
       });
       
       alert("Vendor dispatched successfully!");
-      fetchDashboardData(); 
+      await fetchDashboardData(); 
     } catch (err) {
       console.error("Failed to assign vendor:", err.response?.data);
       alert(err.response?.data?.error || "Could not assign vendor to request.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -222,7 +233,7 @@ const OwnerDashboard = () => {
                   <p style={{ margin: "0 0 12px 0", color: "#475569", fontSize: "14px" }}>{ticket.description}</p>
                   
                   <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", fontSize: "12px", color: "#64748b" }}>
-                    <span><strong>Tenant:</strong> {ticket.tenant_name || "Unknown Tenant"}</span>
+                    <span>export default OwnerDashboard;<strong>Tenant:</strong> {ticket.tenant_name || "Unknown Tenant"}</span>
                     <span><strong>Location:</strong> {ticket.property_name} — Unit {ticket.unit_number}</span>
                     <span><strong>Logged:</strong> {new Date(ticket.created_at).toLocaleDateString()}</span>
                   </div>
@@ -247,8 +258,12 @@ const OwnerDashboard = () => {
                         </label>
                         <select
                           value={selectedPriorities[ticket.id] || "MEDIUM"}
+                          disabled={actionLoading}
                           onChange={(e) => setSelectedPriorities({ ...selectedPriorities, [ticket.id]: e.target.value })}
-                          style={{ padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px" }}
+                          style={{ 
+                            padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px",
+                            cursor: actionLoading ? "not-allowed" : "default"
+                          }}
                         >
                           <option value="LOW">Low</option>
                           <option value="MEDIUM">Medium</option>
@@ -264,10 +279,14 @@ const OwnerDashboard = () => {
                         </label>
                         <select
                           value={ticket.assigned_vendor || ""}
+                          disabled={actionLoading}
                           onChange={(e) => handleAssignVendor(ticket.id, e.target.value)}
-                          style={{ padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff", cursor: "pointer" }}
+                          style={{ 
+                            padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px", 
+                            background: actionLoading ? "#f1f5f9" : "#fff", cursor: actionLoading ? "not-allowed" : "pointer" 
+                          }}
                         >
-                          <option value="">-- Select Vendor to Dispatch --</option>
+                          <option value="">{actionLoading ? "Processing dispatch..." : "-- Select Vendor to Dispatch --"}</option>
                           {vendors.map((v) => (
                             <option key={v.id} value={v.id}>{v.name}</option>
                           ))}
@@ -316,6 +335,8 @@ const OwnerDashboard = () => {
               <tbody>
                 {allLeases.map((lease) => {
                   const isActive = lease.status === "ACTIVE";
+                  const monthlyRent = parseFloat(lease.rent_amount || lease.unit?.rent_price || 0);
+                  
                   return (
                     <tr key={lease.id} style={{ borderBottom: "1px solid #f1f5f9", fontSize: "14px", color: "#334155" }}>
                       <td style={{ padding: "14px 8px" }}>
@@ -329,7 +350,7 @@ const OwnerDashboard = () => {
                         <span style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>Unit {lease.unit?.unit_number}</span>
                       </td>
                       <td style={{ padding: "14px 8px", fontWeight: "600", color: "#0f172a" }}>
-                        ${parseFloat(lease.rent_amount || lease.unit?.rent_price).toFixed(2)}/mo
+                        KSh {monthlyRent.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
                       </td>
                       <td style={{ padding: "14px 8px", fontSize: "13px", color: "#334155" }}>
                         {lease.start_date} <span style={{ color: "#94a3b8" }}>➔</span> {lease.end_date}
@@ -347,14 +368,21 @@ const OwnerDashboard = () => {
                         {isActive && (
                           <button 
                             onClick={() => handleTerminateLease(lease.id)}
+                            disabled={actionLoading}
                             style={{ 
-                              background: "#ef4444", color: "#fff", border: "none", padding: "6px 12px", 
-                              borderRadius: "4px", cursor: "pointer", display: "inline-flex", 
+                              background: actionLoading ? "#cbd5e1" : "#ef4444", 
+                              color: "#fff", border: "none", padding: "6px 12px", 
+                              borderRadius: "4px", display: "inline-flex", 
                               alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600",
-                              transition: "background 0.2s"
+                              transition: "background 0.2s",
+                              cursor: actionLoading ? "not-allowed" : "pointer"
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = "#b91c1c"}
-                            onMouseLeave={(e) => e.currentTarget.style.background = "#ef4444"}
+                            onMouseEnter={(e) => {
+                              if (!actionLoading) e.currentTarget.style.background = "#b91c1c";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!actionLoading) e.currentTarget.style.background = "#ef4444";
+                            }}
                           >
                             <FaTrash size={11} /> Terminate
                           </button>

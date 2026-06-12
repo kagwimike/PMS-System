@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import Notifications from "../components/Notifications";
 import "../styles/Navbar.css";
 
-const Navbar = () => {
+// ✅ FIX 1: Accept user context state directly as props from App.js
+const Navbar = ({ user, onLogout }) => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const location = useLocation();
   const token = localStorage.getItem("token");
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/");
-  };
+  // Auto-close navigation overlays when changing views
+  useEffect(() => {
+    setMenuOpen(false);
+    setShowNotifications(false);
+  }, [location.pathname]);
 
   const fetchUnreadCount = async () => {
     if (!token) return;
@@ -48,6 +50,15 @@ const Navbar = () => {
     }
   }, [user, token]);
 
+  const handleLogoutAction = () => {
+    localStorage.clear();
+    if (onLogout) onLogout(); // Clear App.js parent state layer instantly
+    navigate("/");
+  };
+
+  // Safe normalized assessment string extraction
+  const currentRole = user?.role ? user.role.toUpperCase() : "";
+
   return (
     <>
       <nav className="navbar">
@@ -55,7 +66,7 @@ const Navbar = () => {
           <Link to="/">PMS Pro</Link>
         </div>
 
-        {/* 🔹 Public Navigation Links */}
+        {/* Public Navigation Links */}
         <div className="nav-links">
           <Link to="/">Home</Link>
           <Link to="/about">About</Link>
@@ -63,7 +74,7 @@ const Navbar = () => {
 
         {user && (
           <div className="nav-right">
-            {/* 🔔 Notification Bell */}
+            {/* Notification Bell */}
             <div
               className="bell-container"
               onClick={() => setShowNotifications(!showNotifications)}
@@ -98,105 +109,87 @@ const Navbar = () => {
         )}
       </nav>
 
-      {/* Sidebar */}
+      {/* Sidebar Overlay Ledger Layout */}
       {user && (
         <div className={`sidebar ${menuOpen ? "active" : ""}`}>
           <div className="sidebar-content">
             <h4>Core</h4>
-            <Link to="/properties" onClick={() => setMenuOpen(false)}>
-              Properties
-            </Link>
-            <Link to="/leases" onClick={() => setMenuOpen(false)}>
-              Leases
-            </Link>
+            <Link to="/properties">Properties</Link>
+            <Link to="/leases">Leases</Link>
 
-            {(user.role === "OWNER" || user.role === "ADMIN") && (
+            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
               <>
                 <h4>Management</h4>
-                <Link to="/properties/add" onClick={() => setMenuOpen(false)}>
-                  Add Property
-                </Link>
-                <Link to="/create-lease" onClick={() => setMenuOpen(false)}>
-                  Create Lease
-                </Link>
+                <Link to="/properties/add">Add Property</Link>
+                <Link to="/create-lease">Create Lease</Link>
               </>
             )}
 
-            {/* 💳 💳 NEW PAYMENTS & FINANCIALS ENGINE SECTION */}
-            <h4>Financials</h4>
-            {user.role === "TENANT" ? (
-              <>
-                <Link to="/tenant/billing" onClick={() => setMenuOpen(false)}>
-                  My Invoices & Rent
-                </Link>
-                <Link to="/payment-history" onClick={() => setMenuOpen(false)}>
-                  Payment History
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/owner/invoices" onClick={() => setMenuOpen(false)}>
-                  Global Invoices
-                </Link>
-                <Link to="/payment-history" onClick={() => setMenuOpen(false)}>
-                  Collected Payments
-                </Link>
-              </>
-            )}
+{/* 💳 FINANCIALS ENGINE INTERACTIVE LINKS */}
+<h4>Financials</h4>
+{(() => {
+  const currentRole = user?.role ? user.role.toUpperCase() : "";
+
+  if (currentRole === "TENANT") {
+    return (
+      <>
+        <Link to="/tenant/billing">My Invoices & Rent</Link>
+        <Link to="/payment-history">Payment History</Link>
+      </>
+    );
+  } else if (currentRole === "OWNER" || currentRole === "ADMIN") {
+    return (
+      <>
+        <Link to="/owner/invoices">Global Invoices</Link>
+        <Link to="/payment-history">Collected Payments</Link>
+      </>
+    );
+  } else {
+    // 🔓 FALLBACK: Force visibility for testing when role isn't matching perfectly
+    return (
+      <>
+        <Link to="/tenant/billing" style={{ color: "#2563eb", fontWeight: "600" }}>
+          👉 Open Test Billing (Tenant View)
+        </Link>
+        <span style={{ color: "#64748b", fontSize: "10px", display: "block", paddingLeft: "10px" }}>
+          Session Key Data: {JSON.stringify(user)}
+        </span>
+      </>
+    );
+  }
+})()}
 
             <h4>Inspections</h4>
-            <Link to="/inspections" onClick={() => setMenuOpen(false)}>
-              View Inspections
-            </Link>
+            <Link to="/inspections">View Inspections</Link>
 
-            {(user.role === "OWNER" || user.role === "ADMIN") && (
+            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
               <>
-                <Link to="/create-inspection" onClick={() => setMenuOpen(false)}>
-                  New Inspection
-                </Link>
-                <Link to="/damage" onClick={() => setMenuOpen(false)}>
-                  Record Damage
-                </Link>
-                <Link to="/deposit-summary" onClick={() => setMenuOpen(false)}>
-                  Deposit Summary
-                </Link>
+                <Link to="/create-inspection">New Inspection</Link>
+                <Link to="/damage">Record Damage</Link>
+                <Link to="/deposit-summary">Deposit Summary</Link>
               </>
             )}
 
             <h4>Maintenance</h4>
-            <Link to="/maintenance" onClick={() => setMenuOpen(false)}>
-              All Requests
-            </Link>
+            <Link to="/maintenance">All Requests</Link>
 
-            {(user.role === "OWNER" || user.role === "ADMIN") && (
+            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
               <>
-                <Link to="/maintenance/new" onClick={() => setMenuOpen(false)}>
-                  New Request
-                </Link>
-                <Link to="/vendors" onClick={() => setMenuOpen(false)}>
-                  Vendors
-                </Link>
+                <Link to="/maintenance/new">New Request</Link>
+                <Link to="/vendors">Vendors</Link>
               </>
             )}
 
-            {/* 🔹 Company Info */}
             <h4>Company</h4>
-            <Link to="/about" onClick={() => setMenuOpen(false)}>
-              About PMS Pro
-            </Link>
-            <Link to="/contact" onClick={() => setMenuOpen(false)}>
-              Contact
-            </Link>
+            <Link to="/about">About PMS Pro</Link>
+            <Link to="/contact">Contact</Link>
 
             <h4>Account</h4>
-            <Link
-              to={`/${user.role.toLowerCase()}`}
-              onClick={() => setMenuOpen(false)}
-            >
+            <Link to={`/${user?.role?.toLowerCase() || ""}`}>
               Dashboard
             </Link>
 
-            <button className="logout-btn" onClick={handleLogout}>
+            <button className="logout-btn" onClick={handleLogoutAction}>
               Logout
             </button>
           </div>

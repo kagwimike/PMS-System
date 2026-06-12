@@ -22,6 +22,7 @@ class TenantLeaseSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields  # fully read-only for tenants
 
+
 # ======================= ADMIN / OWNER SERIALIZER =======================
 class LeaseSerializer(serializers.ModelSerializer):
     unit_number = serializers.ReadOnlyField(source='unit.unit_number')
@@ -33,30 +34,52 @@ class LeaseSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def validate(self, data):
-        start = data.get('start_date')
-        end = data.get('end_date')
-        unit = data.get('unit')
+        """
+        DRF serialization intercept engine. Ensures payload structure matches
+        strict database rules prior to executing model .save() handlers.
+        """
+        # Note: self.instance exists if this is a PUT/PATCH update operation
+        start = data.get('start_date', getattr(self.instance, 'start_date', None))
+        end = data.get('end_date', getattr(self.instance, 'end_date', None))
+        unit = data.get('unit', getattr(self.instance, 'unit', None))
+        status = data.get('status', getattr(self.instance, 'status', 'PENDING'))
 
-        if start > end:
+        print(f"⚙️ [SERIALIZER VALIDATION] Processing request data bounds for Unit: {unit} | Target Status: {status}")
+
+        if start and end and start > end:
             raise serializers.ValidationError({
                 'start_date': 'Start date must be before end date.',
                 'end_date': 'End date must be after start date.'
             })
 
-        # Check for overlapping ACTIVE leases
-        overlapping = Lease.objects.filter(
-            unit=unit,
-            status="ACTIVE",
-            start_date__lte=end,
-            end_date__gte=start
-        )
+        # 🔥 CHECK OVERLAPS FOR BOTH ACTIVE AND PENDING LEASES
+        if unit and status in ["ACTIVE", "PENDING"]:
+            overlapping = Lease.objects.filter(
+                unit=unit,
+                status__in=["ACTIVE", "PENDING"],  
+                start_date__lte=end,
+                end_date__gte=start
+            )
 
-        if self.instance:
-            overlapping = overlapping.exclude(pk=self.instance.pk)
+            if self.instance:
+                overlapping = overlapping.exclude(pk=self.instance.pk)
 
-        if overlapping.exists():
-            raise serializers.ValidationError({
-                'unit': 'This unit has an overlapping active lease.'
-            })
+            if overlapping.exists():
+                print(f"❌ [SERIALIZER BLOCKED] Overlap detected for Unit ID {unit.id} during date interval.")
+                raise serializers.ValidationError({
+                    'unit': 'This unit already has an active or pending lease scheduled for these dates.'
+                })
 
         return data
+
+    def create(self, validated_data):
+        """
+        🛠️ BACKEND SAFEGUARD OVERRIDE
+        Forces all brand-new lease records created via the API interface
+        to initialize strictly as PENDING, bypassing frontend payload anomalies.
+        """
+        print("🛠️ [SERIALIZER CREATE] Overriding incoming status to secure PENDING pipeline initialization.")
+        validated_data['status'] = 'PENDING'
+        
+        # This calls Lease.save() under the hood, running your custom onboarding logic!
+        return super().create(validated_data)

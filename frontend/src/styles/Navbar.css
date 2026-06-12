@@ -1,179 +1,283 @@
-/* ===== Reset Safe Defaults ===== */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* =========================
+   NAVBAR
+========================= */
 
-/* ===== Top Navbar ===== */
 .navbar {
-  width: 100%;
-  height: 70px;
-  background: #0f172a;
-  color: white;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 0 25px;
   position: fixed;
   top: 0;
   left: 0;
+  right: 0;
+
+  height: 70px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 0 25px;
   z-index: 1000;
+
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Logo */
+/* =========================
+   LOGO
+========================= */
+
 .logo a {
-  color: white;
-  font-size: 22px;
-  font-weight: 600;
   text-decoration: none;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2563eb;
 }
 
-/* Public nav links */
+/* =========================
+   NAV LINKS
+========================= */
+
 .nav-links {
+  display: flex;
+  gap: 25px;
+}
+
+.nav-links a,
+.auth-links a {
+  text-decoration: none;
+  color: #334155;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.nav-links a:hover,
+.auth-links a:hover {
+  color: #2563eb;
+}
+
+/* =========================
+   AUTH LINKS
+========================= */
+
+.auth-links {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.register-btn {
+  background: #2563eb;
+  color: white !important;
+  padding: 10px 16px;
+  border-radius: 8px;
+}
+
+.register-btn:hover {
+  background: #1d4ed8;
+}
+
+/* =========================
+   RIGHT SECTION
+========================= */
+
+.nav-right {
   display: flex;
   align-items: center;
   gap: 20px;
 }
 
-.nav-links a {
-  color: #e2e8f0;
-  text-decoration: none;
-  font-size: 15px;
-  transition: 0.3s ease;
-}
+/* =========================
+   NOTIFICATIONS
+========================= */
 
-.nav-links a:hover {
-  color: #38bdf8;
-}
-
-/* Register button */
-.register-btn {
-  background: #38bdf8;
-  color: #0f172a !important;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.register-btn:hover {
-  background: #0ea5e9;
-}
-
-/* Burger menu */
-.burger {
-  font-size: 24px;
+.bell-container {
+  position: relative;
   cursor: pointer;
-  display: block;
+  font-size: 22px;
 }
 
-/* ===== Sidebar ===== */
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+
+  background: #ef4444;
+  color: white;
+
+  min-width: 18px;
+  height: 18px;
+
+  border-radius: 50%;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: 75px;
+  right: 25px;
+
+  width: 380px;
+  max-height: 500px;
+
+  overflow-y: auto;
+
+  background: white;
+  border-radius: 12px;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+
+  z-index: 2000;
+}
+
+/* =========================
+   BURGER
+========================= */
+
+.burger {
+  font-size: 28px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.burger:hover {
+  color: #2563eb;
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+
 .sidebar {
   position: fixed;
-  top: 70px; /* below navbar */
-  left: -260px;
-  width: 260px;
+  top: 70px;
+  right: -320px;
+
+  width: 320px;
   height: calc(100vh - 70px);
-  background: #1e293b;
-  transition: 0.3s ease-in-out;
-  z-index: 999;
+
+  background: #fff;
+
+  border-left: 1px solid #e5e7eb;
+
+  transition: 0.35s ease;
+
   overflow-y: auto;
+
+  z-index: 999;
+
+  box-shadow: -5px 0 20px rgba(0,0,0,0.08);
 }
 
 .sidebar.active {
-  left: 0;
+  right: 0;
 }
 
 .sidebar-content {
   padding: 25px;
 }
 
-/* Section titles */
-.sidebar h4 {
-  color: #94a3b8;
+.sidebar-content h4 {
+  margin-top: 20px;
+  margin-bottom: 12px;
+
+  color: #64748b;
   font-size: 13px;
-  margin-top: 20px;
-  margin-bottom: 10px;
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-/* Sidebar links */
-.sidebar a {
+.sidebar-content a {
   display: block;
-  padding: 8px 0;
-  color: #e2e8f0;
+
+  padding: 12px 15px;
+  margin-bottom: 6px;
+
   text-decoration: none;
-  font-size: 14px;
-  transition: 0.2s ease;
+  color: #334155;
+
+  border-radius: 8px;
+
+  transition: 0.3s;
 }
 
-.sidebar a:hover {
-  color: #38bdf8;
-  padding-left: 6px;
+.sidebar-content a:hover {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
-/* Logout button */
+/* =========================
+   LOGOUT BUTTON
+========================= */
+
 .logout-btn {
-  margin-top: 20px;
-  padding: 10px;
   width: 100%;
-  background: #ef4444;
+
+  margin-top: 20px;
+
   border: none;
-  border-radius: 6px;
+
+  background: #dc2626;
   color: white;
+
+  padding: 12px;
+
+  border-radius: 8px;
+
   cursor: pointer;
   font-weight: 600;
-  transition: 0.3s ease;
+
+  transition: 0.3s;
 }
 
 .logout-btn:hover {
-  background: #dc2626;
+  background: #b91c1c;
 }
 
-/* Prevent page content hiding behind fixed navbar */
+/* =========================
+   PAGE OFFSET
+========================= */
+
+/* VERY IMPORTANT */
 body {
-  padding-top: 70px;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 
-/* Right side navbar items */
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  position: relative;
+/* This prevents content hiding under navbar */
+.main-content,
+.dashboard-container,
+.tenant-dashboard,
+.owner-dashboard,
+.admin-dashboard {
+  padding-top: 90px;
 }
 
-/* Notification Bell */
-.bell-container {
-  position: relative;
-  font-size: 22px;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
+/* =========================
+   MOBILE
+========================= */
 
-.bell-container:hover {
-  transform: scale(1.1);
-}
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
 
-/* Unread badge */
-.notification-badge {
-  position: absolute;
-  top: -6px;
-  right: -8px;
-  background: red;
-  color: white;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 50%;
-  font-weight: bold;
-}
+  .notification-dropdown {
+    width: 95%;
+    right: 2.5%;
+  }
 
-/* Notification dropdown */
-.notification-dropdown {
-  position: absolute;
-  right: 0;
-  top: 60px;
-  z-index: 2000;
+  .sidebar {
+    width: 280px;
+  }
+
+  .navbar {
+    padding: 0 15px;
+  }
 }

@@ -4,7 +4,7 @@ import "../styles/LeaseForm.css";
 
 const LeaseForm = () => {
   /* ============================
-     STATE
+      STATE
   ============================ */
 
   const [properties, setProperties] = useState([]);
@@ -30,7 +30,7 @@ const LeaseForm = () => {
   const [error, setError] = useState("");
 
   /* ============================
-     FETCH INITIAL DATA
+      FETCH INITIAL DATA
   ============================ */
 
   useEffect(() => {
@@ -43,7 +43,7 @@ const LeaseForm = () => {
       const res = await API.get("properties/");
       setProperties(res.data);
     } catch (err) {
-      console.error("Error fetching properties:", err);
+      console.error("❌ [LEASE FORM] Error fetching properties:", err);
     }
   };
 
@@ -52,12 +52,12 @@ const LeaseForm = () => {
       const res = await API.get("tenants/");
       setTenants(res.data);
     } catch (err) {
-      console.error("Error fetching tenants:", err);
+      console.error("❌ [LEASE FORM] Error fetching tenants:", err);
     }
   };
 
   /* ============================
-     LOAD UNITS WHEN PROPERTY CHANGES
+      LOAD UNITS WHEN PROPERTY CHANGES
   ============================ */
 
   useEffect(() => {
@@ -72,6 +72,7 @@ const LeaseForm = () => {
 
   const loadUnits = async (propertyId) => {
     try {
+      console.log(`📡 [LEASE FORM] Loading vacant units for Property ID: ${propertyId}`);
       const res = await API.get(`units/?property=${propertyId}`);
 
       // Only VACANT units
@@ -79,16 +80,17 @@ const LeaseForm = () => {
         (unit) => unit.status === "VACANT"
       );
 
+      console.log(`📋 [LEASE FORM] Found ${vacantUnits.length} vacant units:`, vacantUnits);
       setUnits(vacantUnits);
       setSelectedUnit("");
     } catch (err) {
-      console.error("Error loading units:", err);
+      console.error("❌ [LEASE FORM] Error loading units:", err);
       setUnits([]);
     }
   };
 
   /* ============================
-     TENANT TOGGLE
+      TENANT TOGGLE
   ============================ */
 
   const handleTenantToggle = () => {
@@ -101,7 +103,7 @@ const LeaseForm = () => {
   };
 
   /* ============================
-     SUBMIT
+      SUBMIT HANDLER
   ============================ */
 
   const handleSubmit = async (e) => {
@@ -111,60 +113,77 @@ const LeaseForm = () => {
 
     let tenantId = selectedTenant;
 
+    console.log("🚀 [SUBMIT START] Processing lease form submission...");
+
     try {
       /* ---------- CREATE TENANT INLINE ---------- */
       if (creatingTenant) {
-  try {
-    const tenantRes = await API.post("tenants/", {
-      name: tenantName,
-      email: tenantEmail,
-      phone: tenantPhone,
-      id_number: tenantIdNumber,
-    });
+        const tenantPayload = {
+          name: tenantName,
+          email: tenantEmail,
+          phone: tenantPhone,
+          id_number: tenantIdNumber,
+        };
+        
+        console.log("👤 [TENANT CREATION] Attempting inline tenant post. Payload:", tenantPayload);
 
-    tenantId = tenantRes.data.id;
-    setTenants((prev) => [...prev, tenantRes.data]);
+        try {
+          const tenantRes = await API.post("tenants/", tenantPayload);
+          tenantId = tenantRes.data.id;
+          console.log(`✅ [TENANT CREATION] New tenant created successfully with ID: ${tenantId}`, tenantRes.data);
+          setTenants((prev) => [...prev, tenantRes.data]);
 
-  } catch (err) {
-    // If email already exists, fetch that tenant instead
-    if (err.response?.data?.email) {
-      try {
-        const existing = await API.get(
-          `tenants/?email=${tenantEmail}`
-        );
+        } catch (err) {
+          console.warn("⚠️ [TENANT CREATION] Primary inline request failed. Checking fallback conditions...", err.response?.data);
+          
+          // If email already exists, fetch that tenant instead
+          if (err.response?.data?.email) {
+            try {
+              console.log(`🔍 [TENANT LOOKUP] Fetching existing tenant via email fallback: ${tenantEmail}`);
+              const existing = await API.get(`tenants/?email=${tenantEmail}`);
 
-        if (existing.data.length > 0) {
-          tenantId = existing.data[0].id;
-        } else {
-          setError("Tenant email already exists.");
-          return;
+              if (existing.data.length > 0) {
+                tenantId = existing.data[0].id;
+                console.log(`🎯 [TENANT LOOKUP] Matched existing record. Using Tenant ID: ${tenantId}`);
+              } else {
+                console.error("❌ [TENANT LOOKUP] Server rejected creation due to existing email, but lookup query returned empty data.");
+                setError("Tenant email already exists.");
+                return;
+              }
+
+            } catch (fetchErr) {
+              console.error("❌ [TENANT FALLBACK CRITICAL] Failed to retrieve existing tenant data:", fetchErr);
+              setError("Tenant already exists but could not retrieve.");
+              return;
+            }
+          } else {
+            console.error("❌ [TENANT CREATION CRITICAL] Inline tenant generation broke down completely:", err.response?.data);
+            setError(JSON.stringify(err.response?.data));
+            return;
+          }
         }
-
-      } catch (fetchErr) {
-        setError("Tenant already exists but could not retrieve.");
-        return;
       }
-    } else {
-      setError(JSON.stringify(err.response?.data));
-      return;
-    }
-  }
-}
 
-
-      /* ---------- CREATE LEASE ---------- */
-      await API.post("leases/", {
+      /* ---------- CREATE LEASE (WITH PENDING TRIGGER) ---------- */
+      const leasePayload = {
         property: selectedProperty,
         unit: selectedUnit,
         tenant: tenantId,
         start_date: startDate,
         end_date: endDate,
         rent_amount: rentAmount,
-      });
+        status: "PENDING", 
+      };
 
-      setSuccess("Lease created successfully!");
+      console.log("📡 [LEASE API POST] Shipping payload to Django API backend server:", leasePayload);
 
-      /* ---------- AUTO REFRESH UNITS (STATUS UPDATE) ---------- */
+      const response = await API.post("leases/", leasePayload);
+      
+      console.log("✅ [LEASE API SUCCESS] Server responded with code 201. Record created:", response.data);
+      setSuccess("Lease dropped into ecosystem pending verification! Automated STK request sent.");
+
+      /* ---------- AUTO REFRESH UNITS ---------- */
+      console.log("🔄 [POST-SUBMIT REFRESH] Triggering component state synchronized reload...");
       await loadUnits(selectedProperty);
 
       /* ---------- RESET FORM ---------- */
@@ -178,18 +197,27 @@ const LeaseForm = () => {
       setStartDate("");
       setEndDate("");
       setRentAmount("");
+      console.log("🧹 [POST-SUBMIT CLEANUP] Form inputs successfully cleared and reset.");
 
     } catch (err) {
-      console.error("Lease creation error:", err.response || err);
-      setError(
-        err.response?.data?.detail ||
-          "Something went wrong while creating lease."
-      );
+      console.error("💥 [LEASE CRITICAL EXCEPTION] Handshake pipeline failed completely.");
+      
+      if (err.response) {
+        console.error(`📊 [SERVER ERROR] Status Received: ${err.response.status}`);
+        console.error("📄 [SERVER ERROR Payload Body]:", err.response.data);
+        setError(err.response.data?.detail || JSON.stringify(err.response.data));
+      } else if (err.request) {
+        console.error("📡 [NETWORK ERROR] No response received from target host backend endpoint:", err.request);
+        setError("Network connection timed out. Verify your API local server state.");
+      } else {
+        console.error("⚙️ [SETUP ERROR] Exception occurred processing network lifecycle configurations:", err.message);
+        setError("Something went wrong while initializing request setup parameters.");
+      }
     }
   };
 
   /* ============================
-     UI
+      UI VIEWPORT RENDER
   ============================ */
 
   return (
@@ -322,4 +350,4 @@ const LeaseForm = () => {
   );
 };
 
-export default LeaseForm;  
+export default LeaseForm;

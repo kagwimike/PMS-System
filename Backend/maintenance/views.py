@@ -38,7 +38,7 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
     - ONLY tenants can create maintenance requests.
     - Landlords (Owners) view property-specific requests and assign vendors.
     - Automatically discovers Property and Unit info based on the tenant's active lease.
-    - Dispatches WebSocket and internal DB notifications upon vendor assignment.
+    - Dispatches WebSocket and internal DB notifications upon changes.
     """
     queryset = MaintenanceRequest.objects.all()
     serializer_class = MaintenanceRequestSerializer
@@ -50,15 +50,12 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         user_role = getattr(user, "role", None)
 
-        # Tenants: Only see requests they created
         if user_role == "TENANT":
             return queryset.filter(tenant=user).order_by('-created_at')
 
-        # Owners (Landlords): Only see requests for properties they own
         if user_role == "OWNER":
             return queryset.filter(property__owner=user).order_by('-created_at')
 
-        # Admin: Full global view
         if user_role == "ADMIN":
             return queryset.order_by('-created_at')
 
@@ -66,10 +63,6 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
     # ----------------- 2. ROLE-BASED CREATION BLOCK -----------------
     def create(self, request, *args, **kwargs):
-        """
-        Overridden to ensure ONLY tenants can submit requests.
-        Landlords and Admins are restricted.
-        """
         if getattr(request.user, "role", None) != "TENANT":
             return Response(
                 {"error": "Access Denied: Only tenants are permitted to create maintenance requests."},
@@ -78,9 +71,6 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        """
-        Intercepts creation to auto-bind the tenant's current Property and Unit.
-        """
         user = self.request.user
         Lease = apps.get_model('leases', 'Lease')
         active_lease = Lease.objects.filter(tenant=user, status="ACTIVE").first()
@@ -94,57 +84,169 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         else:
             serializer.save(tenant=user)
 
-    # ----------------- 3. UPDATE & VENDOR ASSIGNMENT DISPATCH -----------------
+    # ----------------- 3. UPDATE LOGIC -----------------
     def perform_update(self, serializer):
-        # Track what the vendor was BEFORE the update to catch new assignments
         old_instance = self.get_object()
         old_vendor = old_instance.assigned_vendor
+        old_status = old_instance.status
         
         instance = serializer.save()
 
-        # Check if a vendor was just newly assigned or swapped
+        # 1. Fallback tracking if landlord updates vendor via standard form
         if instance.assigned_vendor and (old_vendor != instance.assigned_vendor):
-            
-            # --- WebSocket Broadcast to Group ---
-            channel_layer = get_channel_layer()
-            if channel_layer:
-                try:
-                    async_to_sync(channel_layer.group_send)(
-                        "maintenance_updates",
-                        {
-                            "type": "maintenance_update",
-                            "data": {
-                                "id": instance.id,
-                                "status": instance.status,
-                                "vendor": instance.assigned_vendor.name,
-                            },
-                        }
-                    )
-                except Exception:
-                    pass
+            self._dispatch_vendor_notifications(instance)
 
-            # --- DB Notification: Alert the Tenant ---
+        # 2. Fallback notification if state progress changes outside the custom endpoints
+        if old_status != instance.status:
+            self._dispatch_status_change_notifications(instance, old_status)
+
+    # Helper method to keep vendor assignment notifications DRY
+    def _dispatch_vendor_notifications(self, instance):
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    "maintenance_updates",
+                    {
+                        "type": "maintenance_update",
+                        "data": {
+                            "id": instance.id,
+                            "status": instance.status,
+                            "vendor": instance.assigned_vendor.name if instance.assigned_vendor else "Unassigned",
+                        },
+                    }
+                )
+            except Exception:
+                pass
+
+        Notification.objects.create(
+            recipient=instance.tenant,
+            message=f"Vendor '{instance.assigned_vendor.name}' has been assigned to your request: '{instance.title}'.",
+            link=f"/maintenance/{instance.id}"
+        )
+
+        if hasattr(instance.assigned_vendor, "user") and instance.assigned_vendor.user:
             Notification.objects.create(
-                recipient=instance.tenant,
-                message=f"Vendor '{instance.assigned_vendor.name}' has been assigned to your request: '{instance.title}'.",
+                recipient=instance.assigned_vendor.user,
+                message=f"New Assignment: You have a work order for Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
                 link=f"/maintenance/{instance.id}"
             )
 
-            # --- DB Notification: Alert the Vendor (if account linked) ---
-            if hasattr(instance.assigned_vendor, "user") and instance.assigned_vendor.user:
-                Notification.objects.create(
-                    recipient=instance.assigned_vendor.user,
-                    message=f"New Assignment: You have a work order for Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
-                    link=f"/maintenance/{instance.id}"
+    # Helper method to alert management and broadcast progress over WebSockets
+    def _dispatch_status_change_notifications(self, instance, old_status):
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    "maintenance_updates",
+                    {
+                        "type": "maintenance_update",
+                        "data": {
+                            "id": instance.id,
+                            "status": instance.status,
+                            "vendor": instance.assigned_vendor.name if instance.assigned_vendor else "Unassigned",
+                        },
+                    }
                 )
+            except Exception:
+                pass
 
-    # ----------------- 4. TENANT CONFIRM COMPLETION -----------------
+        # Notify Landlord/Property Manager
+        if instance.property and instance.property.owner:
+            Notification.objects.create(
+                recipient=instance.property.owner,
+                message=f"Tenant shifted progress of '{instance.title}' from {old_status} to {instance.status} at Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
+                link=f"/maintenance/{instance.id}"
+            )
+
+    # ----------------- 4. EXPLICIT VENDOR ASSIGNMENT ENDPOINT -----------------
+    @action(detail=True, methods=["post"], url_path="assign")
+    def assign_vendor(self, request, pk=None):
+        if getattr(request.user, "role", None) not in ["OWNER", "ADMIN"]:
+            return Response(
+                {"error": "Access Denied: Only property managers or admins can assign vendors."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        maintenance_request = self.get_object()
+        vendor_id = request.data.get("vendor")
+
+        if not vendor_id:
+            return Response({"error": "Vendor ID is required field."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if maintenance_request.assigned_vendor != vendor:
+            maintenance_request.assigned_vendor = vendor
+            if maintenance_request.status == "PENDING":
+                maintenance_request.status = "ASSIGNED"
+            
+            maintenance_request.save()
+            self._dispatch_vendor_notifications(maintenance_request)
+
+        return Response(
+            {
+                "message": "Vendor assigned successfully.",
+                "status": maintenance_request.status,
+                "vendor": vendor.name
+            },
+            status=status.HTTP_200_OK
+        )
+
+    # ----------------- 5. FLEXIBLE TENANT DYNAMIC PROGRESS CONTROL -----------------
+    # This overrides partial_update (PATCH) to intercept calls from `API.patch('/maintenance/requests/${id}/', {status: ...})`
+    def partial_update(self, request, *args, **kwargs):
+        user = request.user
+        instance = self.get_object()
+        target_status = request.data.get("status")
+
+        # If a tenant is attempting to update status, enforce pipeline safety constraints
+        if getattr(user, "role", None) == "TENANT":
+            if instance.tenant != user:
+                return Response(
+                    {"error": "Access Denied: You cannot track maintenance updates on another tenant's unit."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            if target_status:
+                valid_tenant_stages = ["IN_PROGRESS", "COMPLETED", "VERIFIED"]
+                if target_status not in valid_tenant_stages:
+                    return Response(
+                        {"error": f"Invalid Pipeline Mutation. Tenants can only set targets to: {valid_tenant_stages}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Optional validation: Prevent jumping straight to VERIFIED from PENDING
+                if target_status == "VERIFIED" and instance.status not in ["COMPLETED", "COMPLETED_BY_VENDOR"]:
+                    return Response(
+                        {"error": "Validation Rule: You cannot verify a task before it has been marked completed."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                old_status = instance.status
+                instance.status = target_status
+                instance.save()
+                
+                # Fire alerts to the landlord and dispatch to client UI
+                self._dispatch_status_change_notifications(instance, old_status)
+                
+                serializer = self.get_serializer(instance)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return super().partial_update(request, *args, **kwargs)
+
     @action(detail=True, methods=["post"])
     def confirm_completion(self, request, pk=None):
+        """
+        Maintained as a legacy backward-compatible fallback endpoint. 
+        Forces status directly into 'COMPLETED'.
+        """
         user = request.user
         maintenance = self.get_object()
 
-        # Only the tenant who opened the ticket can close it out
         if maintenance.tenant != user:
             return Response(
                 {"error": "You are not allowed to confirm completion for this request."},
@@ -157,15 +259,9 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        old_status = maintenance.status
         maintenance.status = "COMPLETED"
         maintenance.save()
 
-        # Notify the property owner that the tenant verified the job is done
-        if maintenance.property and maintenance.property.owner:
-            Notification.objects.create(
-                recipient=maintenance.property.owner,
-                message=f"Tenant confirmed completion of maintenance request '{maintenance.title}' at Unit {maintenance.unit.unit_number if maintenance.unit else 'N/A'}.",
-                link=f"/maintenance/{maintenance.id}"
-            )
-
+        self._dispatch_status_change_notifications(maintenance, old_status)
         return Response({"status": "Maintenance marked as completed."})

@@ -4,17 +4,17 @@ import api from "../services/api";
 import Notifications from "../components/Notifications";
 import "../styles/Navbar.css";
 
-// ✅ FIX 1: Accept user context state directly as props from App.js
 const Navbar = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("access_token");
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Auto-close navigation overlays when changing views
+  const currentRole = user?.role?.toUpperCase() || "";
+
   useEffect(() => {
     setMenuOpen(false);
     setShowNotifications(false);
@@ -22,42 +22,57 @@ const Navbar = ({ user, onLogout }) => {
 
   const fetchUnreadCount = async () => {
     if (!token) return;
+
     try {
       const res = await api.get("notifications/");
-      const unread = res.data.filter((n) => !n.read).length;
-      setUnreadCount(unread);
+      setUnreadCount(
+        res.data.filter((notification) => !notification.read).length
+      );
     } catch (error) {
-      console.error("Error fetching notifications", error);
+      console.error("Notification Error:", error);
     }
   };
 
   useEffect(() => {
-    if (user && token) {
-      fetchUnreadCount();
+    if (!user || !token) return;
 
-      const ws = new WebSocket(
-        `ws://127.0.0.1:8000/ws/notifications/?token=${token}`
-      );
+    fetchUnreadCount();
 
-      ws.onmessage = () => {
-        fetchUnreadCount();
-      };
+    const ws = new WebSocket(
+      `ws://127.0.0.1:8000/ws/notifications/?token=${token}`
+    );
 
-      ws.onclose = () => console.log("WebSocket closed");
-      ws.onerror = (e) => console.error("WebSocket error:", e);
+    ws.onmessage = () => fetchUnreadCount();
 
-      return () => ws.close();
-    }
+    ws.onerror = (error) =>
+      console.error("WebSocket Error:", error);
+
+    return () => ws.close();
   }, [user, token]);
 
-  const handleLogoutAction = () => {
-    localStorage.clear();
-    if (onLogout) onLogout(); // Clear App.js parent state layer instantly
-    navigate("/");
+  const closeSidebar = () => {
+    setMenuOpen(false);
   };
 
-  // Safe normalized assessment string extraction
-  const currentRole = user?.role ? user.role.toUpperCase() : "";
+  const toggleSidebar = () => {
+    setShowNotifications(false);
+    setMenuOpen((prev) => !prev);
+  };
+
+  const toggleNotifications = () => {
+    setMenuOpen(false);
+    setShowNotifications((prev) => !prev);
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+
+    if (onLogout) {
+      onLogout();
+    }
+
+    navigate("/");
+  };
 
   return (
     <>
@@ -66,134 +81,250 @@ const Navbar = ({ user, onLogout }) => {
           <Link to="/">PMS Pro</Link>
         </div>
 
-        {/* Public Navigation Links */}
         <div className="nav-links">
           <Link to="/">Home</Link>
           <Link to="/about">About</Link>
         </div>
 
-        {user && (
+        {user ? (
           <div className="nav-right">
-            {/* Notification Bell */}
+
             <div
               className="bell-container"
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={toggleNotifications}
             >
               🔔
+
               {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount}</span>
+                <span className="notification-badge">
+                  {unreadCount}
+                </span>
               )}
             </div>
 
-            {/* Burger Menu */}
-            <div className="burger" onClick={() => setMenuOpen(!menuOpen)}>
+            <div
+              className="burger"
+              onClick={toggleSidebar}
+            >
               ☰
             </div>
 
-            {/* Notification Dropdown */}
             {showNotifications && (
               <div className="notification-dropdown">
-                <Notifications showDropdown={true} />
+                <Notifications showDropdown />
               </div>
             )}
           </div>
-        )}
-
-        {!user && (
+        ) : (
           <div className="auth-links">
             <Link to="/login">Login</Link>
-            <Link to="/register" className="register-btn">
+
+            <Link
+              to="/register"
+              className="register-btn"
+            >
               Register
             </Link>
           </div>
         )}
       </nav>
 
-      {/* Sidebar Overlay Ledger Layout */}
-      {user && (
-        <div className={`sidebar ${menuOpen ? "active" : ""}`}>
-          <div className="sidebar-content">
-            <h4>Core</h4>
-            <Link to="/properties">Properties</Link>
-            <Link to="/leases">Leases</Link>
+      {user && menuOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={closeSidebar}
+        />
+      )}
 
-            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
+      {user && (
+        <aside
+          className={`sidebar ${
+            menuOpen ? "active" : ""
+          }`}
+        >
+          <div className="sidebar-content">
+
+            <div className="sidebar-user">
+              <div className="avatar">
+                {user?.username?.charAt(0)?.toUpperCase()}
+              </div>
+
+              <div>
+                <h3>{user?.username}</h3>
+                <span>{currentRole}</span>
+              </div>
+            </div>
+
+            <h4>Core</h4>
+
+            <Link
+              to="/properties"
+              onClick={closeSidebar}
+            >
+              Properties
+            </Link>
+
+            <Link
+              to="/leases"
+              onClick={closeSidebar}
+            >
+              Leases
+            </Link>
+
+            {(currentRole === "OWNER" ||
+              currentRole === "ADMIN") && (
               <>
                 <h4>Management</h4>
-                <Link to="/properties/add">Add Property</Link>
-                <Link to="/create-lease">Create Lease</Link>
+
+                <Link
+                  to="/properties/add"
+                  onClick={closeSidebar}
+                >
+                  Add Property
+                </Link>
+
+                <Link
+                  to="/create-lease"
+                  onClick={closeSidebar}
+                >
+                  Create Lease
+                </Link>
               </>
             )}
 
-{/* 💳 FINANCIALS ENGINE INTERACTIVE LINKS */}
-<h4>Financials</h4>
-{(() => {
-  const currentRole = user?.role ? user.role.toUpperCase() : "";
+            <h4>Financials</h4>
 
-  if (currentRole === "TENANT") {
-    return (
-      <>
-        <Link to="/tenant/billing">My Invoices & Rent</Link>
-        <Link to="/payment-history">Payment History</Link>
-      </>
-    );
-  } else if (currentRole === "OWNER" || currentRole === "ADMIN") {
-    return (
-      <>
-        <Link to="/owner/invoices">Global Invoices</Link>
-        <Link to="/payment-history">Collected Payments</Link>
-      </>
-    );
-  } else {
-    // 🔓 FALLBACK: Force visibility for testing when role isn't matching perfectly
-    return (
-      <>
-        <Link to="/tenant/billing" style={{ color: "#2563eb", fontWeight: "600" }}>
-          👉 Open Test Billing (Tenant View)
-        </Link>
-        <span style={{ color: "#64748b", fontSize: "10px", display: "block", paddingLeft: "10px" }}>
-          Session Key Data: {JSON.stringify(user)}
-        </span>
-      </>
-    );
-  }
-})()}
+            {currentRole === "TENANT" ? (
+              <>
+                <Link
+                  to="/tenant/billing"
+                  onClick={closeSidebar}
+                >
+                  My Invoices & Rent
+                </Link>
+
+                <Link
+                  to="/payment-history"
+                  onClick={closeSidebar}
+                >
+                  Payment History
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/owner/invoices"
+                  onClick={closeSidebar}
+                >
+                  Global Invoices
+                </Link>
+
+                <Link
+                  to="/payment-history"
+                  onClick={closeSidebar}
+                >
+                  Collected Payments
+                </Link>
+              </>
+            )}
 
             <h4>Inspections</h4>
-            <Link to="/inspections">View Inspections</Link>
 
-            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
+            <Link
+              to="/inspections"
+              onClick={closeSidebar}
+            >
+              View Inspections
+            </Link>
+
+            {(currentRole === "OWNER" ||
+              currentRole === "ADMIN") && (
               <>
-                <Link to="/create-inspection">New Inspection</Link>
-                <Link to="/damage">Record Damage</Link>
-                <Link to="/deposit-summary">Deposit Summary</Link>
+                <Link
+                  to="/create-inspection"
+                  onClick={closeSidebar}
+                >
+                  New Inspection
+                </Link>
+
+                <Link
+                  to="/damage"
+                  onClick={closeSidebar}
+                >
+                  Record Damage
+                </Link>
+
+                <Link
+                  to="/deposit-summary"
+                  onClick={closeSidebar}
+                >
+                  Deposit Summary
+                </Link>
               </>
             )}
 
             <h4>Maintenance</h4>
-            <Link to="/maintenance">All Requests</Link>
 
-            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
+            <Link
+              to="/maintenance"
+              onClick={closeSidebar}
+            >
+              All Requests
+            </Link>
+
+            {(currentRole === "OWNER" ||
+              currentRole === "ADMIN") && (
               <>
-                <Link to="/maintenance/new">New Request</Link>
-                <Link to="/vendors">Vendors</Link>
+                <Link
+                  to="/maintenance/new"
+                  onClick={closeSidebar}
+                >
+                  New Request
+                </Link>
+
+                <Link
+                  to="/vendors"
+                  onClick={closeSidebar}
+                >
+                  Vendors
+                </Link>
               </>
             )}
 
             <h4>Company</h4>
-            <Link to="/about">About PMS Pro</Link>
-            <Link to="/contact">Contact</Link>
+
+            <Link
+              to="/about"
+              onClick={closeSidebar}
+            >
+              About PMS Pro
+            </Link>
+
+            <Link
+              to="/contact"
+              onClick={closeSidebar}
+            >
+              Contact
+            </Link>
 
             <h4>Account</h4>
-            <Link to={`/${user?.role?.toLowerCase() || ""}`}>
+
+            <Link
+              to={`/${user?.role?.toLowerCase()}`}
+              onClick={closeSidebar}
+            >
               Dashboard
             </Link>
 
-            <button className="logout-btn" onClick={handleLogoutAction}>
+            <button
+              className="logout-btn"
+              onClick={handleLogout}
+            >
               Logout
             </button>
+
           </div>
-        </div>
+        </aside>
       )}
     </>
   );

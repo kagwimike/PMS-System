@@ -1,83 +1,58 @@
 import React, { useEffect, useState } from "react";
 import API from "../services/api";
 import { Link } from "react-router-dom";
-import ManageUnits from "./ManageUnits"; 
-import { 
-  FaBuilding, 
-  FaMapMarkerAlt, 
-  FaChevronLeft, 
-  FaFileInvoiceDollar, 
-  FaTrash, 
-  FaPlus, 
-  FaTools, 
-  FaUserTie,
-  FaExclamationTriangle
+import ManageUnits from "./ManageUnits";
+import PropertyTypeChart from "./Dashboard/PropertyTypeChart";
+import RevenueOverviewChart from "./Dashboard/RevenueOverviewChart";
+import ExpensesChart from "./Dashboard/ExpensesChart";
+import ActionCenterTable from "./Dashboard/ActionCenterTable";
+
+import {
+  FaChevronLeft,
+  FaFileInvoiceDollar,
+  FaPlus,
+  FaTools,
+  FaChartLine,
+  FaBuilding,
+  FaWarehouse
 } from "react-icons/fa";
+
 import "../styles/OwnerDashboard.css";
 
 const OwnerDashboard = () => {
   const [properties, setProperties] = useState([]);
-  const [allLeases, setAllLeases] = useState([]); 
-  const [maintenanceRequests, setMaintenanceRequests] = useState([]); 
-  const [vendors, setVendors] = useState([]); 
+  const [allLeases, setAllLeases] = useState([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
   const [selectedProperty, setSelectedProperty] = useState(null);
-  
-  // Local states to track separate selections per request item row 
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedPriorities, setSelectedPriorities] = useState({});
-
-  // Asynchronous operational blocker flag to stop double-execution
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    
-    // 1. Fetch CRITICAL baseline data
     try {
-      const [propRes, leaseRes] = await Promise.all([
+      const [propRes, leaseRes, maintRes, vendorRes] = await Promise.all([
         API.get("properties/"),
-        API.get("leases/")
+        API.get("leases/"),
+        API.get("maintenance/requests/"),
+        API.get("maintenance/vendors/")
       ]);
-      setProperties(propRes.data);
-      setAllLeases(leaseRes.data);
+
+      setProperties(propRes.data || []);
+      setAllLeases(leaseRes.data || []);
+      setMaintenanceRequests(
+        Array.isArray(maintRes.data) ? maintRes.data : maintRes.data?.results || []
+      );
+      setVendors(
+        Array.isArray(vendorRes.data) ? vendorRes.data : vendorRes.data?.results || []
+      );
       setError("");
     } catch (err) {
-      console.error("Critical dashboard core synchronization error:", err);
-      setError("Failed to fetch critical property and lease records.");
-      setLoading(false);
-      return; 
-    }
-
-    // 2. Fetch maintenance tickets dynamically mapped via DRF DefaultRouter
-    try {
-      const maintRes = await API.get("maintenance/requests/");
-      if (Array.isArray(maintRes.data)) {
-        setMaintenanceRequests(maintRes.data);
-      } else if (maintRes.data && Array.isArray(maintRes.data.results)) {
-        setMaintenanceRequests(maintRes.data.results);
-      } else {
-        setMaintenanceRequests([]); 
-      }
-    } catch (err) {
-      console.error("Maintenance tracking system endpoint down or unreachable:", err);
-      setMaintenanceRequests([]); 
-    }
-
-    // 3. Fetch vendor list independently
-    try {
-      const vendorRes = await API.get("maintenance/vendors/");
-      if (Array.isArray(vendorRes.data)) {
-        setVendors(vendorRes.data);
-      } else if (vendorRes.data && Array.isArray(vendorRes.data.results)) {
-        setVendors(vendorRes.data.results);
-      } else {
-        setVendors([]);
-      }
-    } catch (err) {
-      console.error("Vendor directory missing or endpoint returned 404:", err);
-      setVendors([]);
+      console.error("Dashboard engine synchronization breakdown:", err);
+      setError("Failed to fetch live management data streams.");
     } finally {
       setLoading(false);
     }
@@ -89,314 +64,369 @@ const OwnerDashboard = () => {
 
   const handleTerminateLease = async (leaseId) => {
     if (actionLoading) return;
-    if (!window.confirm("Are you sure you want to terminate this tenant's lease? This will update their unit status back to VACANT.")) {
-      return;
-    }
+    if (!window.confirm("Confirm lease termination and vacancy update.")) return;
 
     setActionLoading(true);
     try {
       await API.post(`/leases/${leaseId}/terminate/`);
-      await fetchDashboardData(); 
+      await fetchDashboardData();
     } catch (error) {
-      alert(error.response?.data?.error || "Failed to terminate lease.");
+      alert(error.response?.data?.error || "Failed to terminate lease transaction.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  /* ================= FIXED VENDOR ASSIGNMENT ACTION HANDLER ================= */
   const handleAssignVendor = async (requestId, vendorId) => {
-    if (!vendorId || actionLoading) return; 
-
-    // Safely look up chosen urgency index local state context row, default to MEDIUM
+    if (!vendorId || actionLoading) return;
     const priority = selectedPriorities[requestId] || "MEDIUM";
 
     setActionLoading(true);
     try {
-      // Key updated to 'vendor' to satisfy the Django Viewset validation rule cleanly
       await API.post(`maintenance/requests/${requestId}/assign/`, {
         vendor: vendorId,
-        priority: priority
+        priority
       });
-      
       alert("Vendor dispatched successfully!");
-      await fetchDashboardData(); 
+      await fetchDashboardData();
     } catch (err) {
-      console.error("Failed to assign vendor:", err.response?.data);
-      alert(err.response?.data?.error || "Could not assign vendor to request.");
+      alert(err.response?.data?.error || "Could not complete vendor assignment.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  if (loading) return <p className="loading">Loading dashboard elements...</p>;
-  if (error) return <p className="error-message">{error}</p>;
+  const activeLeasesCount = allLeases.filter((lease) => lease.status === "ACTIVE").length;
+  const totalUnits = properties.reduce((sum, property) => sum + Number(property.total_units || 0), 0);
+  const totalRevenue = allLeases
+    .filter((lease) => lease.status === "ACTIVE")
+    .reduce((sum, lease) => sum + Number(lease.rent_amount || lease.unit?.rent_price || 0), 0);
+  const occupancyRate = totalUnits ? Math.round((activeLeasesCount / totalUnits) * 100) : 0;
+  const openTasks = maintenanceRequests.filter((ticket) => ticket.status === "PENDING" || ticket.status === "IN_PROGRESS").length;
 
-  /* ================= VIEW 1: MANAGE UNITS SUB-VIEW ================= */
-  if (selectedProperty) {
+  const propertyCards = properties.map((property) => {
+    const activeOnProperty = allLeases.filter(
+      (lease) => lease.unit?.property?.id === property.id && lease.status === "ACTIVE"
+    ).length;
+    const total = Number(property.total_units || 0);
+    const occupancy = total ? Math.round((activeOnProperty / total) * 100) : 0;
+    return {
+      id: property.id,
+      name: property.name,
+      city: property.city,
+      country: property.country,
+      type: property.property_type || "Residential",
+      totalUnits: total,
+      occupiedUnits: activeOnProperty,
+      occupancy,
+      availableUnits: Math.max(0, total - activeOnProperty)
+    };
+  });
+
+  if (loading) {
     return (
-      <div className="owner-dashboard-container">
-        <button 
-          onClick={() => setSelectedProperty(null)}
-          style={{
-            background: "none", border: "none", color: "#2563eb", cursor: "pointer",
-            fontSize: "16px", display: "flex", alignItems: "center", gap: "8px",
-            marginBottom: "20px", fontWeight: "500"
-          }}
-        >
-          <FaChevronLeft /> Back to Properties Overview
-        </button>
-        
-        <div className="property-header" style={{ marginBottom: "20px", borderBottom: "1px solid #e2e8f0", paddingBottom: "15px" }}>
-          <h2 style={{ margin: "0 0 5px 0", color: "#1e293b" }}>Managing Units for: {selectedProperty.name}</h2>
-          <p style={{ color: "#64748b", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-            <FaMapMarkerAlt /> {selectedProperty.city}, {selectedProperty.country}
-          </p>
+      <div className="owner-dashboard-shell loading-screen">
+        <div className="loading-card">
+          <span>Synchronizing portfolio analytics...</span>
         </div>
-
-        <ManageUnits propertyId={selectedProperty.id} />
       </div>
     );
   }
 
-  /* ================= VIEW 2: OVERVIEW GRID VIEW ================= */
-  return (
-    <div className="owner-dashboard-container" style={{ padding: "20px" }}>
-      
-      {/* Header Panel */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
-        <h2 style={{ margin: 0, color: "#1e293b" }}>Your Properties Overview</h2>
-        <Link to="/owner/add-property" className="add-property-btn" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <FaPlus size={12} /> Add New Property
-        </Link>
+  if (error) {
+    return (
+      <div className="owner-dashboard-shell loading-screen">
+        <div className="error-card">{error}</div>
       </div>
+    );
+  }
 
-      {/* Properties Card Grid */}
-      <div className="properties-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px", marginBottom: "40px" }}>
-        {properties.length === 0 ? (
-          <p style={{ color: "#64748b", fontStyle: "italic" }}>No registered properties found.</p>
-        ) : (
-          properties.map((prop) => (
-            <div 
-              key={prop.id} 
-              className="property-card" 
-              style={{ 
-                border: "1px solid #e1e6eb", borderRadius: "8px", padding: "20px", 
-                background: "#fff", cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s"
-              }}
-              onClick={() => setSelectedProperty(prop)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.transform = "none";
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#2563eb", marginBottom: "12px" }}>
-                <FaBuilding size={20} />
-                <h3 style={{ margin: 0, color: "#111827", fontSize: "18px" }}>{prop.name}</h3>
-              </div>
-              
-              <p style={{ margin: "6px 0", color: "#4b5563", fontSize: "14px" }}><strong>Type:</strong> {prop.property_type}</p>
-              <p style={{ margin: "6px 0", color: "#4b5563", display: "flex", alignItems: "center", gap: "4px", fontSize: "14px" }}>
-                <FaMapMarkerAlt size={14} color="#64748b" /> {prop.city}, {prop.country}
-              </p>
-              
-              <div style={{ marginTop: "15px", paddingTop: "15px", borderTop: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "13px", color: "#6b7280" }}>Capacity Layout:</span>
-                <strong style={{ color: "#2563eb", fontSize: "14px" }}>{prop.total_units} Units</strong>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+  if (selectedProperty) {
+    const propertyMetrics = propertyCards.find((item) => item.id === selectedProperty.id) || {};
 
-      {/* ================= MAINTENANCE REQUEST TICKETS MONITOR ================= */}
-      <div className="owner-maintenance-section" style={{ background: "#fff", padding: "25px", borderRadius: "8px", border: "1px solid #e1e6eb", boxShadow: "0 1px 3px rgba(0,0,0,0.02)", marginBottom: "40px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px", color: "#eab308" }}>
-          <FaTools size={22} />
-          <h3 style={{ margin: 0, color: "#1e293b", fontSize: "18px" }}>Incoming Tenant Maintenance Tasks</h3>
+    return (
+      <div className="owner-dashboard-shell owner-dashboard-container">
+        <div className="page-banner">
+          <button onClick={() => setSelectedProperty(null)} className="back-button">
+            <FaChevronLeft /> Back to Portfolio
+          </button>
+          <div className="page-banner-copy">
+            <p className="section-label">Property Operations</p>
+            <h2>{selectedProperty.name}</h2>
+            <p className="section-subtitle">
+              Manage units, tenant move-ins, and operational workflows for this asset.
+            </p>
+          </div>
+          <div className="page-banner-actions">
+            <Link to="/owner/add-property" className="pill-button primary">New Asset</Link>
+            <Link to="/properties" className="pill-button outline">Portfolio Library</Link>
+          </div>
         </div>
 
-        {maintenanceRequests.length === 0 ? (
-          <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "14px", margin: 0 }}>
-            No unresolved maintenance requests logged for your units right now.
+        <div className="detail-grid">
+          <div className="glass-card detail-summary-card">
+            <div className="section-title-row">
+              <div>
+                <p className="section-label">Property Snapshot</p>
+                <h3>{selectedProperty.name}</h3>
+              </div>
+              <span className="status-pill active">{propertyMetrics.type}</span>
+            </div>
+
+            <div className="detail-metrics-grid">
+              <div className="metric-tile">
+                <span>Units</span>
+                <strong>{propertyMetrics.totalUnits}</strong>
+              </div>
+              <div className="metric-tile">
+                <span>Occupied</span>
+                <strong>{propertyMetrics.occupiedUnits}</strong>
+              </div>
+              <div className="metric-tile">
+                <span>Available</span>
+                <strong>{propertyMetrics.availableUnits}</strong>
+              </div>
+              <div className="metric-tile">
+                <span>Occupancy Rate</span>
+                <strong>{propertyMetrics.occupancy}%</strong>
+              </div>
+            </div>
+
+            <div className="secondary-meta-row">
+              <div>
+                <span className="meta-label">Location</span>
+                <p>{selectedProperty.city}, {selectedProperty.country}</p>
+              </div>
+              <div>
+                <span className="meta-label">Managed Units</span>
+                <p>{propertyMetrics.occupiedUnits} active leases</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card detail-panel-card">
+            <div className="section-title-row">
+              <div>
+                <p className="section-label">Unit Management</p>
+                <h3>Unit Grid & Tenant Actions</h3>
+              </div>
+              <span className="status-pill info">Live update</span>
+            </div>
+            <ManageUnits propertyId={selectedProperty.id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="owner-dashboard-shell owner-dashboard-container">
+      <header className="dashboard-header">
+        <div className="dashboard-branding">
+          <p className="section-label">Owner Command Center</p>
+          <h1>Modern SaaS Portfolio Dashboard</h1>
+          <p className="section-subtitle">
+            Monitor leased assets, maintenance flows and revenue health in a single command hub.
           </p>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "15px" }}>
-            {maintenanceRequests.map((ticket) => (
-              <div key={ticket.id} style={{ padding: "18px", border: "1px solid #e2e8f0", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "15px" }}>
-                <div>
-                  <h4 style={{ margin: "0 0 6px 0", color: "#0f172a", fontSize: "16px" }}>{ticket.title}</h4>
-                  <p style={{ margin: "0 0 12px 0", color: "#475569", fontSize: "14px" }}>{ticket.description}</p>
-                  
-                  <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", fontSize: "12px", color: "#64748b" }}>
-                    <span>export default OwnerDashboard;<strong>Tenant:</strong> {ticket.tenant_name || "Unknown Tenant"}</span>
-                    <span><strong>Location:</strong> {ticket.property_name} — Unit {ticket.unit_number}</span>
-                    <span><strong>Logged:</strong> {new Date(ticket.created_at).toLocaleDateString()}</span>
+        </div>
+
+        <div className="header-actions">
+          <Link to="/owner/add-property" className="pill-button primary">
+            <FaPlus /> Add Property
+          </Link>
+          <Link to="/owner/properties" className="pill-button outline">
+            View Portfolio
+          </Link>
+        </div>
+      </header>
+
+      <section className="summary-panel grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
+        <div className="metric-card glass-card">
+          <div className="metric-icon accent-blue"><FaBuilding /></div>
+          <div>
+            <p className="metric-label">Properties</p>
+            <strong>{properties.length}</strong>
+          </div>
+        </div>
+        <div className="metric-card glass-card">
+          <div className="metric-icon accent-green"><FaWarehouse /></div>
+          <div>
+            <p className="metric-label">Occupied Units</p>
+            <strong>{activeLeasesCount}</strong>
+          </div>
+        </div>
+        <div className="metric-card glass-card">
+          <div className="metric-icon accent-pink"><FaChartLine /></div>
+          <div>
+            <p className="metric-label">Occupancy</p>
+            <strong>{occupancyRate}%</strong>
+          </div>
+        </div>
+        <div className="metric-card glass-card">
+          <div className="metric-icon accent-amber"><FaTools /></div>
+          <div>
+            <p className="metric-label">Open Requests</p>
+            <strong>{openTasks}</strong>
+          </div>
+        </div>
+        <div className="metric-card glass-card highlighted-card">
+          <div className="metric-icon accent-white"><FaFileInvoiceDollar /></div>
+          <div>
+            <p className="metric-label">Monthly Revenue</p>
+            <strong>KSh {totalRevenue.toLocaleString()}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="dashboard-grid layout-grid-2">
+        <div className="glass-card portfolio-summary-card">
+          <div className="section-title-row">
+            <div>
+              <p className="section-label">Portfolio Pulse</p>
+              <h3>Asset mix & revenue</h3>
+            </div>
+            <span className="status-pill active">Live</span>
+          </div>
+
+          <div className="portfolio-chart-grid">
+            <div className="chart-card chart-card-large">
+              <PropertyTypeChart properties={properties} />
+            </div>
+            <div className="chart-card chart-card-large">
+              <RevenueOverviewChart leases={allLeases} />
+            </div>
+            <div className="chart-card chart-card-small">
+              <ExpensesChart requests={maintenanceRequests} />
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card quick-portfolio-card">
+          <div className="section-title-row">
+            <div>
+              <p className="section-label">Properties at a glance</p>
+              <h3>Quick portfolio list</h3>
+            </div>
+            <span className="status-pill info">{properties.length} assets</span>
+          </div>
+
+          {propertyCards.length === 0 ? (
+            <div className="empty-state-card">
+              <p>No managed properties available yet.</p>
+              <Link to="/owner/add-property" className="pill-button primary">Add your first property</Link>
+            </div>
+          ) : (
+            <div className="property-card-grid">
+              {propertyCards.slice(0, 6).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedProperty(properties.find((property) => property.id === item.id))}
+                  className="property-card"
+                >
+                  <div className="property-card-header">
+                    <div>
+                      <h4>{item.name}</h4>
+                      <p>{item.city}, {item.country}</p>
+                    </div>
+                    <span className="pill-button outline small">Manage</span>
                   </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", minWidth: "240px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "600" }}>Status:</span>
-                    <span style={{
-                      padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold",
-                      background: ticket.status === "VERIFIED" || ticket.status === "COMPLETED" ? "#dcfce7" : ticket.status === "IN_PROGRESS" ? "#fef9c3" : "#fee2e2",
-                      color: ticket.status === "VERIFIED" || ticket.status === "COMPLETED" ? "#166534" : ticket.status === "IN_PROGRESS" ? "#854d0e" : "#991b1b"
-                    }}>{ticket.status}</span>
+                  <div className="property-card-stats">
+                    <span>{item.occupiedUnits}/{item.totalUnits} occupied</span>
+                    <span>{item.availableUnits} vacant</span>
                   </div>
+                  <div className="property-card-footer">
+                    <span className={`status-pill ${item.occupancy > 80 ? 'active' : item.occupancy > 40 ? 'warning' : 'offline'}`}>{item.occupancy}% occupied</span>
+                    <span className="detail-type">{item.type}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
-                  {ticket.status === "PENDING" ? (
-                    <>
-                      {/* 1. Urgency Level Matrix Select Dropdown */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <label style={{ fontSize: "12px", color: "#475569", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px" }}>
-                          <FaExclamationTriangle size={11} /> Urgency Metric:
-                        </label>
-                        <select
-                          value={selectedPriorities[ticket.id] || "MEDIUM"}
-                          disabled={actionLoading}
-                          onChange={(e) => setSelectedPriorities({ ...selectedPriorities, [ticket.id]: e.target.value })}
-                          style={{ 
-                            padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px",
-                            cursor: actionLoading ? "not-allowed" : "default"
-                          }}
-                        >
-                          <option value="LOW">Low</option>
-                          <option value="MEDIUM">Medium</option>
-                          <option value="HIGH">High</option>
-                          <option value="URGENT">Urgent</option>
-                        </select>
-                      </div>
+      <section className="dashboard-grid layout-grid-2 lower-panel-grid">
+        <div className="glass-card maintenance-workflow-card">
+          <div className="section-title-row">
+            <div>
+              <p className="section-label">Maintenance Workflow</p>
+              <h3>Priority tickets</h3>
+            </div>
+            <span className="status-pill warning">Action required</span>
+          </div>
 
-                      {/* 2. Vendor Assignment Trigger Dropdown Selector */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <label style={{ fontSize: "12px", color: "#475569", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px" }}>
-                          <FaUserTie size={11} /> Dispatch Specialized Vendor:
-                        </label>
-                        <select
-                          value={ticket.assigned_vendor || ""}
-                          disabled={actionLoading}
-                          onChange={(e) => handleAssignVendor(ticket.id, e.target.value)}
-                          style={{ 
-                            padding: "6px", borderRadius: "4px", border: "1px solid #cbd5e1", fontSize: "13px", 
-                            background: actionLoading ? "#f1f5f9" : "#fff", cursor: actionLoading ? "not-allowed" : "pointer" 
-                          }}
-                        >
-                          <option value="">{actionLoading ? "Processing dispatch..." : "-- Select Vendor to Dispatch --"}</option>
-                          {vendors.map((v) => (
-                            <option key={v.id} value={v.id}>{v.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "4px", border: "1px solid #e2e8f0", marginTop: "5px" }}>
-                      <span style={{ fontSize: "13px", color: "#334155", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <FaUserTie size={12} color="#64748b" /> 
-                        <strong>Dispatched:</strong> {ticket.assigned_vendor_name || "Active Worker"}
-                      </span>
+          {maintenanceRequests.length === 0 ? (
+            <div className="empty-state-card">
+              <p>No active maintenance requests at the moment.</p>
+            </div>
+          ) : (
+            <div className="maintenance-list">
+              {maintenanceRequests.slice(0, 4).map((ticket) => (
+                <div key={ticket.id} className="maintenance-item-card">
+                  <div className="maintenance-item-head">
+                    <div>
+                      <h4>{ticket.title}</h4>
+                      <p>{ticket.property_name} · Unit {ticket.unit_number}</p>
+                    </div>
+                    <span className={`status-pill ${ticket.status === 'COMPLETED' || ticket.status === 'VERIFIED' ? 'active' : ticket.status === 'IN_PROGRESS' ? 'warning' : 'offline'}`}>
+                      {ticket.status}
+                    </span>
+                  </div>
+                  <p className="maintenance-item-desc">{ticket.description}</p>
+                  <div className="maintenance-item-meta">
+                    <span className="meta-chip">Priority: {ticket.priority || 'MEDIUM'}</span>
+                    <span className="meta-chip">Vendor: {ticket.vendor?.name || ticket.assigned_vendor_name || 'Unassigned'}</span>
+                  </div>
+                  <div className="maintenance-item-actions-row">
+                    <button
+                      type="button"
+                      className="pill-button outline"
+                      onClick={() => setSelectedTicket(ticket)}
+                    >
+                      View progress
+                    </button>
+                  </div>
+                  {ticket.status === 'PENDING' && (
+                    <div className="maintenance-actions">
+                      <select
+                        value={selectedPriorities[ticket.id] || 'MEDIUM'}
+                        disabled={actionLoading}
+                        onChange={(e) => setSelectedPriorities({ ...selectedPriorities, [ticket.id]: e.target.value })}
+                      >
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HIGH">High</option>
+                        <option value="URGENT">Urgent</option>
+                      </select>
+                      <select
+                        value={ticket.assigned_vendor || ''}
+                        disabled={actionLoading}
+                        onChange={(e) => handleAssignVendor(ticket.id, e.target.value)}
+                      >
+                        <option value="">Assign vendor</option>
+                        {vendors.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ================= GLOBAL LEASE MONITOR ================= */}
-      <div className="owner-leases-section" style={{ background: "#fff", padding: "25px", borderRadius: "8px", border: "1px solid #e1e6eb", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px", color: "#2563eb" }}>
-          <FaFileInvoiceDollar size={22} />
-          <h3 style={{ margin: 0, color: "#1e293b", fontSize: "18px" }}>Active Tenant Leases (Global Monitor)</h3>
+              ))}
+            </div>
+          )}
         </div>
 
-        {allLeases.length === 0 ? (
-          <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "14px", margin: 0 }}>
-            No active tenant leases found. Select an available vacant property unit box above to check a tenant in.
-          </p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "5px" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #f1f5f9", color: "#64748b", fontSize: "13px" }}>
-                  <th style={{ padding: "12px 8px" }}>Tenant Profile</th>
-                  <th style={{ padding: "12px 8px" }}>Property Location</th>
-                  <th style={{ padding: "12px 8px" }}>Base Rent Amount</th>
-                  <th style={{ padding: "12px 8px" }}>Lease Timeline</th>
-                  <th style={{ padding: "12px 8px" }}>Status</th>
-                  <th style={{ padding: "12px 8px", textAlign: "center" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allLeases.map((lease) => {
-                  const isActive = lease.status === "ACTIVE";
-                  const monthlyRent = parseFloat(lease.rent_amount || lease.unit?.rent_price || 0);
-                  
-                  return (
-                    <tr key={lease.id} style={{ borderBottom: "1px solid #f1f5f9", fontSize: "14px", color: "#334155" }}>
-                      <td style={{ padding: "14px 8px" }}>
-                        <strong style={{ color: "#0f172a" }}>{lease.tenant?.first_name} {lease.tenant?.last_name}</strong>
-                        <br />
-                        <span style={{ fontSize: "12px", color: "#64748b" }}>{lease.tenant?.email}</span>
-                      </td>
-                      <td style={{ padding: "14px 8px" }}>
-                        <span style={{ fontWeight: "500" }}>{lease.unit?.property?.name}</span>
-                        <br />
-                        <span style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>Unit {lease.unit?.unit_number}</span>
-                      </td>
-                      <td style={{ padding: "14px 8px", fontWeight: "600", color: "#0f172a" }}>
-                        KSh {monthlyRent.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
-                      </td>
-                      <td style={{ padding: "14px 8px", fontSize: "13px", color: "#334155" }}>
-                        {lease.start_date} <span style={{ color: "#94a3b8" }}>➔</span> {lease.end_date}
-                      </td>
-                      <td style={{ padding: "14px 8px" }}>
-                        <span style={{ 
-                          padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold",
-                          background: isActive ? "#dcfce7" : "#fee2e2",
-                          color: isActive ? "#166534" : "#991b1b"
-                        }}>
-                          {lease.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 8px", textAlign: "center" }}>
-                        {isActive && (
-                          <button 
-                            onClick={() => handleTerminateLease(lease.id)}
-                            disabled={actionLoading}
-                            style={{ 
-                              background: actionLoading ? "#cbd5e1" : "#ef4444", 
-                              color: "#fff", border: "none", padding: "6px 12px", 
-                              borderRadius: "4px", display: "inline-flex", 
-                              alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600",
-                              transition: "background 0.2s",
-                              cursor: actionLoading ? "not-allowed" : "pointer"
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!actionLoading) e.currentTarget.style.background = "#b91c1c";
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!actionLoading) e.currentTarget.style.background = "#ef4444";
-                            }}
-                          >
-                            <FaTrash size={11} /> Terminate
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="glass-card lease-overview-card">
+          <div className="section-title-row">
+            <div>
+              <p className="section-label">Lease Tracker</p>
+              <h3>System action center</h3>
+            </div>
+            <span className="status-pill info">{allLeases.length} records</span>
           </div>
-        )}
-      </div>
-
+          <ActionCenterTable properties={properties} leases={allLeases} />
+        </div>
+      </section>
     </div>
   );
 };

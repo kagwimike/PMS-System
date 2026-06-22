@@ -1,0 +1,55 @@
+/* --- Full Donut Chart Component Layout --- */
+.portfolio-mix-container {
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Centralized absolute overlay ring text summary */
+.portfolio-center-summary {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* --- Clean Compact Data Key Badges --- */
+.type-grid-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background-color: #f8fafc; /* Soft slate-50 backdrop */
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  transition: all 0.2s ease-in-out;
+}
+
+.type-grid-pill:hover {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+  transform: scale(1.02);
+}
+
+/* Custom rounded square icon tags instead of default markdown bullet dots */
+.tag-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 3.5px;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.tag-res { background-color: #10b981; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); }
+.tag-com { background-color: #0f172a; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.25); }
+.tag-apt { background-color: #fbbf24; box-shadow: 0 2px 4px rgba(251, 191, 36, 0.25); }
+.tag-villa { background-color: #3b82f6; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.25); }
+
+/* Monospace spacing layout logic for inventory metrics numbers */
+.tag-count-value {
+  font-feature-settings: "tnum";
+  font-weight: 800;
+  color: #1e293b;
+}

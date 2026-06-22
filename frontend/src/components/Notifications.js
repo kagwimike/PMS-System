@@ -31,7 +31,7 @@ const Notifications = ({ showDropdown }) => {
   useEffect(() => {
     fetchNotifications();
 
-    const token = localStorage.getItem("access"); // your JWT
+    const token = localStorage.getItem("access_token"); // your JWT
     if (!token) return; // Don't connect if no token
 
     const ws = new WebSocket(

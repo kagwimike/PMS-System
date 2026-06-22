@@ -8,22 +8,25 @@ const Footer = () => {
       <div className="footer-container">
         <div className="footer-brand">
           <h3>PMS Pro</h3>
-          <p>Effortless Property Management for Everyone.</p>
+          <p>Effortless property and maintenance management for owners, vendors, and tenants.</p>
+          <div className="footer-cta">
+            <Link to="/login" className="footer-cta-button">Sign In</Link>
+            <Link to="/register" className="footer-cta-ghost">Create account</Link>
+          </div>
         </div>
 
         <div className="footer-links">
-          <h4>Quick Links</h4>
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
+          <h4>Product</h4>
           <Link to="/properties">Properties</Link>
-          <Link to="/contact">Contact</Link>
+          <Link to="/maintenance">Maintenance</Link>
+          <Link to="/vendors">Vendors</Link>
         </div>
 
         <div className="footer-contact">
-          <h4>Contact Us</h4>
+          <h4>Contact</h4>
           <p>Email: support@pmspro.com</p>
           <p>Phone: +254 700 000 000</p>
-          <p>Address: Nairobi, Kenya</p>
+          <p>Nairobi, Kenya</p>
         </div>
       </div>
 

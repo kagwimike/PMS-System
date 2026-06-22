@@ -1,84 +1,100 @@
-/* =========================
-   NAVBAR
-========================= */
+/* ==========================================
+   PMS PRO NAVBAR
+========================================== */
 
 .navbar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-
-  height: 70px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  z-index: 1000;
 
   display: flex;
   justify-content: space-between;
   align-items: center;
 
-  padding: 0 25px;
-  z-index: 1000;
+  padding: 0.9rem 2rem;
 
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background: rgba(15, 23, 42, 0.95);
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+
+  box-shadow: 0 5px 20px rgba(0,0,0,0.2);
 }
 
-/* =========================
+/* ==========================================
    LOGO
-========================= */
+========================================== */
 
 .logo a {
   text-decoration: none;
-  font-size: 24px;
-  font-weight: 700;
-  color: #2563eb;
+
+  font-size: 1.5rem;
+  font-weight: 900;
+
+  background: linear-gradient(
+    135deg,
+    #3b82f6,
+    #8b5cf6,
+    #ec4899
+  );
+
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-/* =========================
+/* ==========================================
    NAV LINKS
-========================= */
+========================================== */
 
-.nav-links {
+.nav-links,
+.auth-links {
   display: flex;
-  gap: 25px;
+  align-items: center;
+  gap: 20px;
 }
 
 .nav-links a,
 .auth-links a {
+  color: white;
   text-decoration: none;
-  color: #334155;
-  font-weight: 500;
-  transition: 0.3s;
+  font-weight: 600;
+
+  transition: all 0.3s ease;
 }
 
 .nav-links a:hover,
 .auth-links a:hover {
-  color: #2563eb;
-}
-
-/* =========================
-   AUTH LINKS
-========================= */
-
-.auth-links {
-  display: flex;
-  gap: 15px;
-  align-items: center;
+  color: #60a5fa;
 }
 
 .register-btn {
-  background: #2563eb;
+  padding: 10px 18px;
+
+  border-radius: 12px;
+
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #7c3aed
+  );
+
   color: white !important;
-  padding: 10px 16px;
-  border-radius: 8px;
+
+  box-shadow:
+    0 5px 15px rgba(37,99,235,0.3);
+
+  transition: all 0.3s ease;
 }
 
 .register-btn:hover {
-  background: #1d4ed8;
+  transform: translateY(-2px);
 }
 
-/* =========================
+/* ==========================================
    RIGHT SECTION
-========================= */
+========================================== */
 
 .nav-right {
   display: flex;
@@ -86,108 +102,130 @@
   gap: 20px;
 }
 
-/* =========================
-   NOTIFICATIONS
-========================= */
+/* ==========================================
+   NOTIFICATION BELL
+========================================== */
 
 .bell-container {
   position: relative;
+
   cursor: pointer;
-  font-size: 22px;
+
+  font-size: 1.5rem;
+
+  transition: all 0.3s ease;
+}
+
+.bell-container:hover {
+  transform: scale(1.15);
 }
 
 .notification-badge {
   position: absolute;
+
   top: -8px;
   right: -10px;
 
-  background: #ef4444;
-  color: white;
-
-  min-width: 18px;
-  height: 18px;
-
-  border-radius: 50%;
-
-  font-size: 11px;
-  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
 
   display: flex;
   align-items: center;
   justify-content: center;
+
+  border-radius: 50%;
+
+  background: #ef4444;
+
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
 }
 
-.notification-dropdown {
-  position: absolute;
-  top: 75px;
-  right: 25px;
-
-  width: 380px;
-  max-height: 500px;
-
-  overflow-y: auto;
-
-  background: white;
-  border-radius: 12px;
-
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-
-  z-index: 2000;
-}
-
-/* =========================
+/* ==========================================
    BURGER
-========================= */
+========================================== */
 
 .burger {
-  font-size: 28px;
   cursor: pointer;
-  user-select: none;
+
+  font-size: 1.7rem;
+
+  color: white;
+
+  transition: all 0.3s ease;
 }
 
 .burger:hover {
-  color: #2563eb;
+  color: #60a5fa;
+  transform: scale(1.1);
 }
 
-/* =========================
-   SIDEBAR
-========================= */
+/* ==========================================
+   SIDEBAR OVERLAY
+========================================== */
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.5);
+
+  backdrop-filter: blur(4px);
+
+  z-index: 1098;
+
+  animation: fadeIn 0.3s ease;
+}
+
+/* ==========================================
+   LEFT SIDEBAR
+========================================== */
 
 .sidebar {
   position: fixed;
-  top: 70px;
-  right: -320px;
+
+  top: 0;
+  left: -320px;
 
   width: 320px;
-  height: calc(100vh - 70px);
+  height: 100vh;
 
-  background: #fff;
+  background: rgba(15, 23, 42, 0.98);
 
-  border-left: 1px solid #e5e7eb;
+  backdrop-filter: blur(20px);
 
-  transition: 0.35s ease;
+  border-right: 1px solid rgba(255,255,255,0.08);
 
   overflow-y: auto;
 
-  z-index: 999;
+  z-index: 1099;
 
-  box-shadow: -5px 0 20px rgba(0,0,0,0.08);
+  transition: all 0.35s ease;
+
+  box-shadow:
+    10px 0 40px rgba(0,0,0,0.3);
 }
 
 .sidebar.active {
-  right: 0;
+  left: 0;
 }
+
+/* ==========================================
+   SIDEBAR CONTENT
+========================================== */
 
 .sidebar-content {
   padding: 25px;
 }
 
 .sidebar-content h4 {
-  margin-top: 20px;
+  margin-top: 25px;
   margin-bottom: 12px;
 
-  color: #64748b;
-  font-size: 13px;
+  color: #60a5fa;
+
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -195,89 +233,138 @@
 .sidebar-content a {
   display: block;
 
-  padding: 12px 15px;
+  padding: 12px 16px;
   margin-bottom: 6px;
 
+  border-radius: 12px;
+
   text-decoration: none;
-  color: #334155;
 
-  border-radius: 8px;
+  color: rgba(255,255,255,0.85);
 
-  transition: 0.3s;
+  transition: all 0.3s ease;
 }
 
 .sidebar-content a:hover {
-  background: #eff6ff;
-  color: #2563eb;
+  background: rgba(175, 190, 214, 0.15);
+
+  color: white;
+
+  transform: translateX(5px);
 }
 
-/* =========================
+/* ==========================================
    LOGOUT BUTTON
-========================= */
+========================================== */
 
 .logout-btn {
   width: 100%;
 
-  margin-top: 20px;
-
-  border: none;
-
-  background: #dc2626;
-  color: white;
-
+  margin-top: 30px;
   padding: 12px;
 
-  border-radius: 8px;
+  border: none;
+  border-radius: 12px;
 
   cursor: pointer;
-  font-weight: 600;
 
-  transition: 0.3s;
+  font-weight: 700;
+  color: white;
+
+  background: linear-gradient(
+    135deg,
+    #dc2626,
+    #ef4444
+  );
+
+  transition: all 0.3s ease;
 }
 
 .logout-btn:hover {
-  background: #b91c1c;
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 10px 20px rgba(239,68,68,0.3);
 }
 
-/* =========================
-   PAGE OFFSET
-========================= */
+/* ==========================================
+   NOTIFICATION DROPDOWN
+========================================== */
 
-/* VERY IMPORTANT */
-body {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
+.notification-dropdown {
+  position: absolute;
+
+  top: 70px;
+  right: 20px;
+
+  width: 350px;
+  max-height: 500px;
+
+  overflow-y: auto;
+
+  border-radius: 18px;
+
+  background: rgba(15,23,42,0.98);
+
+  border: 1px solid rgba(255,255,255,0.08);
+
+  box-shadow:
+    0 15px 40px rgba(0,0,0,0.3);
+
+  z-index: 1100;
 }
 
-/* This prevents content hiding under navbar */
-.main-content,
-.dashboard-container,
-.tenant-dashboard,
-.owner-dashboard,
-.admin-dashboard {
-  padding-top: 90px;
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+.sidebar::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* =========================
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 20px;
+}
+
+/* ==========================================
+   ANIMATIONS
+========================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ==========================================
    MOBILE
-========================= */
+========================================== */
 
 @media (max-width: 768px) {
+  .navbar {
+    padding: 1rem;
+  }
+
   .nav-links {
     display: none;
   }
 
-  .notification-dropdown {
-    width: 95%;
-    right: 2.5%;
-  }
-
   .sidebar {
     width: 280px;
+    left: -280px;
   }
 
-  .navbar {
-    padding: 0 15px;
+  .notification-dropdown {
+    width: 90%;
+    right: 5%;
   }
 }

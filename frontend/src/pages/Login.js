@@ -1,10 +1,10 @@
 import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
 import "../styles/Auth.css";
-import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 
-const Login = () => {
+const Login = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +16,8 @@ const Login = () => {
   // ---------------------------
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+
     try {
       const res = await API.post("accounts/login/", { username, password });
       const { access, refresh, user } = res.data;
@@ -24,17 +26,16 @@ const Login = () => {
       localStorage.setItem("refresh_token", refresh);
       localStorage.setItem("user", JSON.stringify(user));
 
+      if (onLoginSuccess) onLoginSuccess();
       redirectByRole(user.role);
     } catch (err) {
       setError("Invalid username or password");
     }
   };
 
-  // ---------------------------
-  // Google OAuth2 login
-  // ---------------------------
-  // Inside Login.js
   const handleGoogleSuccess = async (credentialResponse) => {
+    setError("");
+
     try {
       const res = await API.post("accounts/auth/google/", {
         token: credentialResponse.credential,
@@ -45,69 +46,91 @@ const Login = () => {
       localStorage.setItem("refresh_token", refresh);
       localStorage.setItem("user", JSON.stringify(user));
 
+      if (onLoginSuccess) onLoginSuccess();
       redirectByRole(user.role);
     } catch (err) {
       console.error("Google Auth Backend Verification Error:", err);
-      
-      // 👇 ADD THIS LOG LINE TO SEE THE EXACT ERROR FROM DJANGO:
       if (err.response && err.response.data) {
-        console.log("👉 EXACT BACKEND ERROR DETAILS:", err.response.data);
-        setError(`Backend Error: ${err.response.data.details || "Unauthorized"}`);
+        setError(`Backend Error: ${err.response.data.detail || err.response.data.message || "Unauthorized"}`);
       } else {
         setError("Google login failed verification on backend");
       }
     }
   };
-  
+
   const redirectByRole = (role) => {
-    const upperRole = role.toUpperCase();
+    const upperRole = role?.toUpperCase();
     if (upperRole === "ADMIN") navigate("/admin");
-    else if (upperRole === "OWNER" || upperRole === "LANDLORD") navigate("/owner"); // ✅ Added landlord fallback just in case
+    else if (upperRole === "OWNER" || upperRole === "LANDLORD") navigate("/owner");
     else if (upperRole === "TENANT") navigate("/tenant");
     else navigate("/");
   };
 
   return (
-    <div className="auth-container">
-      <h2>PMS Login</h2>
-      {error && <p className="error-message">{error}</p>}
-
-      <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-
-        {/* Password with toggle */}
-        <div className="password-wrapper">
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <span
-            className="toggle-password"
-            onClick={() => setShowPassword(!showPassword)}
-          >
-            {showPassword ? "Hide" : "Show"}
-          </span>
+    <div className="auth-page">
+      <div className="auth-hero">
+        <div className="auth-hero-copy">
+          <span className="brand-pill">PMS</span>
+          <h1>Welcome back</h1>
+          <p>Sign in to manage properties, tenants, maintenance requests, and payments from one modern dashboard.</p>
         </div>
+      </div>
 
-        <button type="submit">Login</button>
-      </form>
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="auth-card-header">
+            <h2>Sign in to your account</h2>
+            <p className="subtitle">Secure access for managers, owners, and tenants.</p>
+          </div>
 
-      <div className="divider">OR</div>
+          {error && <div className="message error">{error}</div>}
 
-      <div className="google-btn-wrapper" style={{ display: "flex", justifyContent: "center" }}>
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={() => setError("Google login initialization failed")}
-        />
+          <form className="auth-form" onSubmit={handleLogin}>
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+
+            <label htmlFor="password">Password</label>
+            <div className="password-wrapper">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="toggle-password"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+
+            <button type="submit" className="primary-btn">Login</button>
+          </form>
+
+          <div className="divider">OR</div>
+
+          <div className="google-btn-wrapper">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError("Google login initialization failed")}
+            />
+          </div>
+
+          <div className="form-footer">
+            <span>New here? <Link to="/register">Create an account</Link></span>
+          </div>
+        </div>
       </div>
     </div>
   );

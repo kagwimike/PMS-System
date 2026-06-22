@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import API from "../services/api";
 import "../styles/Auth.css";
 
@@ -23,17 +24,16 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage(""); // Clear previous messages
+    setMessage("");
 
     try {
       await API.post("accounts/register/", formData);
       setMessage("✅ Registration successful! You can now login.");
+      setFormData({ username: "", email: "", password: "", role: "GUEST", phone: "" });
+      setShowPassword(false);
     } catch (error) {
-      // 1. Check if the server actually responded (Validation/Auth errors)
       if (error.response) {
-        console.log("Backend validation errors:", error.response.data);
-        
-        // Handle Django Rest Framework standard string errors or object arrays
+        console.error("Backend validation errors:", error.response.data);
         if (typeof error.response.data === "object") {
           const errors = Object.entries(error.response.data)
             .map(([field, msgs]) => {
@@ -45,15 +45,11 @@ const Register = () => {
         } else {
           setMessage(`❌ Registration failed: ${error.response.statusText}`);
         }
-
-      // 2. Check if the request was made but no response was received (Network/CORS errors)
       } else if (error.request) {
         console.error("Network Error Details:", error.request);
         setMessage(
-          "❌ Network Error: Could not connect to the server. Please check if your backend is running or verify your CORS configuration."
+          "❌ Network error: Please verify your backend is available and your CORS settings are correct."
         );
-
-      // 3. Something else happened setting up the request
       } else {
         console.error("Error setting up request:", error.message);
         setMessage(`❌ Error: ${error.message}`);

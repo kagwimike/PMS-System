@@ -1,0 +1,189 @@
+/* ==========================================
+   CENTERED VIBRANT KPI CARDS
+========================================== */
+
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  min-height: 180px;
+
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+
+  transition: all 0.35s ease;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* Glow Effect */
+.kpi-card::before {
+  content: "";
+
+  position: absolute;
+  width: 180px;
+  height: 180px;
+
+  top: -80px;
+  right: -80px;
+
+  border-radius: 50%;
+
+  background: radial-gradient(
+    circle,
+    rgba(59,130,246,0.25),
+    transparent 70%
+  );
+}
+
+/* Hover */
+.kpi-card:hover {
+  transform: translateY(-8px);
+
+  border-color: rgba(96,165,250,0.4);
+
+  box-shadow:
+    0 15px 40px rgba(59,130,246,0.25),
+    0 8px 20px rgba(168,85,247,0.2);
+}
+
+/* Revenue Card */
+.kpi-card-highlighted {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37,99,235,0.2),
+      rgba(124,58,237,0.2)
+    ),
+    rgba(15,23,42,0.95);
+
+  border: 1px solid rgba(96,165,250,0.25);
+
+  box-shadow:
+    0 0 25px rgba(59,130,246,0.3),
+    0 0 50px rgba(124,58,237,0.15);
+}
+
+/* KPI Label */
+.kpi-card .text-\[10px\] {
+  color: rgba(255,255,255,0.65);
+
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+
+  margin-top: 15px;
+  margin-bottom: 10px;
+
+  text-align: center;
+}
+
+/* KPI Value */
+.kpi-value-text {
+  color: #ffffff;
+
+  font-size: 2rem;
+  font-weight: 900;
+
+  text-align: center;
+
+  transition: all 0.3s ease;
+}
+
+.kpi-card:hover .kpi-value-text {
+  transform: scale(1.08);
+}
+
+/* Revenue Gradient Text */
+.kpi-card-highlighted .kpi-value-text {
+  background: linear-gradient(
+    135deg,
+    #60a5fa,
+    #a855f7,
+    #ec4899
+  );
+
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Icon */
+.kpi-icon-wrapper {
+  width: 70px;
+  height: 70px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 20px;
+
+  font-size: 2rem;
+
+  background: rgba(255,255,255,0.06);
+
+  backdrop-filter: blur(10px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 5px 15px rgba(0,0,0,0.2);
+
+  transition: all 0.35s ease;
+}
+
+.kpi-card:hover .kpi-icon-wrapper {
+  transform: scale(1.15) rotate(8deg);
+
+  background: linear-gradient(
+    135deg,
+    rgba(59,130,246,0.25),
+    rgba(168,85,247,0.25)
+  );
+
+  box-shadow:
+    0 0 20px rgba(59,130,246,0.35);
+}
+
+/* Fix Layout Elements */
+.kpi-card .flex.justify-between {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 0 !important;
+}
+
+.kpi-card .flex.items-baseline {
+  justify-content: center;
+  align-items: center;
+}
+
+/* Entrance Animation */
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kpi-card {
+  animation: floatIn 0.6s ease forwards;
+}

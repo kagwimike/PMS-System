@@ -22,6 +22,7 @@ ALLOWED_HOSTS = [
 # CHANGE THIS: Match your actual project folder name (the directory containing urls.py and wsgi.py)
 ROOT_URLCONF = 'PMS.urls'
 WSGI_APPLICATION = 'PMS.wsgi.application'
+ASGI_APPLICATION = 'PMS.asgi.application'
 
 # -----------------------------
 # CORS SETTINGS (Crucial for React Frontend)
@@ -59,6 +60,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'corsheaders',
+    'daphne', 
     'channels',
     'social_django',
 
@@ -122,6 +124,15 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
+}
+
+# -----------------------------
+# CHANNEL LAYERS
+# -----------------------------
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
 }
 
 # -----------------------------

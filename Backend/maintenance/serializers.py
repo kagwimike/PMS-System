@@ -13,6 +13,7 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
     property_name = serializers.CharField(source='property.name', read_only=True)
     unit_number = serializers.CharField(source='unit.unit_number', read_only=True)
     assigned_vendor_name = serializers.CharField(source='assigned_vendor.name', read_only=True)
+    vendor = VendorSerializer(source='assigned_vendor', read_only=True)
 
     # Automatically converts image files to absolute URLs for React <img> tags
     damage_photo = serializers.ImageField(required=False, allow_null=True)
@@ -40,6 +41,7 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
             # Vendor metrics updates
             'assigned_vendor', 
             'assigned_vendor_name',
+            'vendor',
             'vendor_notes',         # ✅ Added: For closing notes
             'vendor_completed_at',  # ✅ Added: Timestamp tracking
             

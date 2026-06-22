@@ -2,12 +2,14 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.apps import apps
+from django.utils import timezone
 
 from .models import MaintenanceRequest, Vendor
 from .serializers import MaintenanceRequestSerializer, VendorSerializer
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from notifications.models import Notification
+from notifications.notifications import send_tenant_email
 
 
 # ----------------- VENDOR VIEWSET -----------------
@@ -98,26 +100,26 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
         # 2. Fallback notification if state progress changes outside the custom endpoints
         if old_status != instance.status:
+            self._ensure_vendor_completion_timestamp(instance)
             self._dispatch_status_change_notifications(instance, old_status)
 
     # Helper method to keep vendor assignment notifications DRY
     def _dispatch_vendor_notifications(self, instance):
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            try:
-                async_to_sync(channel_layer.group_send)(
-                    "maintenance_updates",
-                    {
-                        "type": "maintenance_update",
-                        "data": {
-                            "id": instance.id,
-                            "status": instance.status,
-                            "vendor": instance.assigned_vendor.name if instance.assigned_vendor else "Unassigned",
-                        },
-                    }
-                )
-            except Exception:
-                pass
+        if not instance.assigned_vendor:
+            return
+
+        self._send_socket_notification(
+            user=instance.tenant,
+            message=f"Vendor '{instance.assigned_vendor.name}' has been assigned to your request: '{instance.title}'.",
+            link=f"/maintenance/{instance.id}"
+        )
+
+        if instance.property and instance.property.owner:
+            self._send_socket_notification(
+                user=instance.property.owner,
+                message=f"Vendor '{instance.assigned_vendor.name}' has been assigned to '{instance.title}' at Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
+                link=f"/maintenance/{instance.id}"
+            )
 
         Notification.objects.create(
             recipient=instance.tenant,
@@ -125,39 +127,105 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             link=f"/maintenance/{instance.id}"
         )
 
-        if hasattr(instance.assigned_vendor, "user") and instance.assigned_vendor.user:
-            Notification.objects.create(
-                recipient=instance.assigned_vendor.user,
-                message=f"New Assignment: You have a work order for Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
-                link=f"/maintenance/{instance.id}"
-            )
-
-    # Helper method to alert management and broadcast progress over WebSockets
-    def _dispatch_status_change_notifications(self, instance, old_status):
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            try:
-                async_to_sync(channel_layer.group_send)(
-                    "maintenance_updates",
-                    {
-                        "type": "maintenance_update",
-                        "data": {
-                            "id": instance.id,
-                            "status": instance.status,
-                            "vendor": instance.assigned_vendor.name if instance.assigned_vendor else "Unassigned",
-                        },
-                    }
-                )
-            except Exception:
-                pass
-
-        # Notify Landlord/Property Manager
         if instance.property and instance.property.owner:
             Notification.objects.create(
                 recipient=instance.property.owner,
-                message=f"Tenant shifted progress of '{instance.title}' from {old_status} to {instance.status} at Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
+                message=f"Vendor '{instance.assigned_vendor.name}' has been assigned to '{instance.title}' at Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
                 link=f"/maintenance/{instance.id}"
             )
+
+        if instance.assigned_vendor.email:
+            send_tenant_email(
+                subject=f"New Maintenance Assignment: {instance.title}",
+                message=(
+                    f"Hello {instance.assigned_vendor.name},\n\n"
+                    f"You have been assigned to a new maintenance request.\n\n"
+                    f"Request: {instance.title}\n"
+                    f"Unit: {instance.unit.unit_number if instance.unit else 'N/A'}\n"
+                    f"Property: {instance.property.name if instance.property else 'N/A'}\n"
+                    f"Details: {instance.description}\n\n"
+                    f"Please update the work order status when the job begins and completes."
+                ),
+                recipient_email=instance.assigned_vendor.email,
+            )
+
+    def _broadcast_maintenance_update(self, instance):
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+
+        try:
+            async_to_sync(channel_layer.group_send)(
+                "maintenance_updates",
+                {
+                    "type": "maintenance_update",
+                    "data": {
+                        "id": instance.id,
+                        "status": instance.status,
+                        "vendor": instance.assigned_vendor.name if instance.assigned_vendor else "Unassigned",
+                        "title": instance.title,
+                        "unit_number": instance.unit.unit_number if instance.unit else "N/A",
+                        "property_name": instance.property.name if instance.property else "N/A",
+                    },
+                }
+            )
+        except Exception:
+            pass
+
+    def _send_socket_notification(self, user, message, link=None):
+        if not user:
+            return
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+
+        try:
+            async_to_sync(channel_layer.group_send)(
+                f"user_{user.id}",
+                {
+                    "type": "send_notification",
+                    "message": {
+                        "message": message,
+                        "link": link or "",
+                    },
+                }
+            )
+        except Exception:
+            pass
+
+    # Helper method to alert management and broadcast progress over WebSockets
+    def _dispatch_status_change_notifications(self, instance, old_status):
+        self._broadcast_maintenance_update(instance)
+
+        if instance.property and instance.property.owner:
+            Notification.objects.create(
+                recipient=instance.property.owner,
+                message=f"Maintenance request '{instance.title}' moved from {old_status} to {instance.status} for Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
+                link=f"/maintenance/{instance.id}"
+            )
+            self._send_socket_notification(
+                user=instance.property.owner,
+                message=f"Maintenance request '{instance.title}' moved from {old_status} to {instance.status} for Unit {instance.unit.unit_number if instance.unit else 'N/A'}.",
+                link=f"/maintenance/{instance.id}"
+            )
+
+        if instance.tenant and self.request.user != instance.tenant:
+            Notification.objects.create(
+                recipient=instance.tenant,
+                message=f"Your maintenance request '{instance.title}' has been updated from {old_status} to {instance.status}.",
+                link=f"/maintenance/{instance.id}"
+            )
+            self._send_socket_notification(
+                user=instance.tenant,
+                message=f"Your maintenance request '{instance.title}' has been updated from {old_status} to {instance.status}.",
+                link=f"/maintenance/{instance.id}"
+            )
+
+    def _ensure_vendor_completion_timestamp(self, instance):
+        if instance.status in ["COMPLETED", "VERIFIED"] and not instance.vendor_completed_at:
+            instance.vendor_completed_at = timezone.now()
+            instance.save(update_fields=["vendor_completed_at"])
 
     # ----------------- 4. EXPLICIT VENDOR ASSIGNMENT ENDPOINT -----------------
     @action(detail=True, methods=["post"], url_path="assign")
@@ -179,12 +247,16 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        priority = request.data.get("priority", "MEDIUM")
+
         if maintenance_request.assigned_vendor != vendor:
             maintenance_request.assigned_vendor = vendor
+            maintenance_request.priority = priority
             if maintenance_request.status == "PENDING":
-                maintenance_request.status = "ASSIGNED"
-            
+                maintenance_request.status = "IN_PROGRESS"
+
             maintenance_request.save()
+
             self._dispatch_vendor_notifications(maintenance_request)
 
         return Response(
@@ -229,7 +301,8 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
                 old_status = instance.status
                 instance.status = target_status
                 instance.save()
-                
+                self._ensure_vendor_completion_timestamp(instance)
+
                 # Fire alerts to the landlord and dispatch to client UI
                 self._dispatch_status_change_notifications(instance, old_status)
                 

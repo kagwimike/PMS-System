@@ -2,36 +2,49 @@ import React from "react";
 import { Link } from "react-router-dom";
 import "../styles/Footer.css";
 
+const PRODUCT_LINKS = [
+  { to: "/properties", label: "Properties" },
+  { to: "/maintenance", label: "Maintenance" },
+  { to: "/vendors", label: "Vendors" },
+];
+
 const Footer = () => {
   return (
     <footer className="footer">
-      <div className="footer-container">
-        <div className="footer-brand">
+      <div className="footer-grid">
+        {/* Brand Section */}
+        <div className="footer-section brand">
           <h3>PMS Pro</h3>
           <p>Effortless property and maintenance management for owners, vendors, and tenants.</p>
-          <div className="footer-cta">
-            <Link to="/login" className="footer-cta-button">Sign In</Link>
-            <Link to="/register" className="footer-cta-ghost">Create account</Link>
+          <div className="footer-actions">
+            <Link to="/login" className="btn btn-primary">Sign In</Link>
+            <Link to="/register" className="btn btn-ghost">Create account</Link>
           </div>
         </div>
 
-        <div className="footer-links">
+        {/* Links Section */}
+        <div className="footer-section">
           <h4>Product</h4>
-          <Link to="/properties">Properties</Link>
-          <Link to="/maintenance">Maintenance</Link>
-          <Link to="/vendors">Vendors</Link>
+          <nav className="footer-nav">
+            {PRODUCT_LINKS.map(({ to, label }) => (
+              <Link key={to} to={to}>{label}</Link>
+            ))}
+          </nav>
         </div>
 
-        <div className="footer-contact">
+        {/* Contact Section */}
+        <div className="footer-section">
           <h4>Contact</h4>
-          <p>Email: support@pmspro.com</p>
-          <p>Phone: +254 700 000 000</p>
-          <p>Nairobi, Kenya</p>
+          <address className="footer-contact">
+            <a href="mailto:support@pmspro.com">support@pmspro.com</a>
+            <a href="tel:+254700000000">+254 700 000 000</a>
+            <span>Nairobi, Kenya</span>
+          </address>
         </div>
       </div>
 
       <div className="footer-bottom">
-        <p>© 2026 PMS Pro. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} PMS Pro. All rights reserved.</p>
       </div>
     </footer>
   );

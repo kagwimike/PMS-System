@@ -47,6 +47,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 INSTALLED_APPS = [
     # 1. Custom User App MUST be at the top to avoid Migration Errors
     'accounts', 
+    'daphne', 
     
     'django.contrib.admin',
     'django.contrib.auth',
@@ -60,7 +61,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'corsheaders',
-    'daphne', 
+    
     'channels',
     'social_django',
 

@@ -8,6 +8,7 @@ const DamageForm = () => {
   const [selectedInspection, setSelectedInspection] = useState("");
   const [description, setDescription] = useState("");
   const [cost, setCost] = useState("");
+  const [chargeTarget, setChargeTarget] = useState("TENANT_DEPOSIT");
   const [photo, setPhoto] = useState(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -39,12 +40,11 @@ const DamageForm = () => {
     }
 
     const formData = new FormData();
-    // Convert string ID to a clean integer before sending
     formData.append("inspection", parseInt(selectedInspection, 10));
     formData.append("description", description);
-    formData.append("cost", parseFloat(cost)); // Ensure cost is handled as a decimal/float number
+    formData.append("cost", parseFloat(cost));
+    formData.append("charge_target", chargeTarget);
     
-    // Only append the photo file if the user actually uploaded one
     if (photo) {
       formData.append("photo", photo);
     }
@@ -57,12 +57,12 @@ const DamageForm = () => {
       setError("");
       setDescription("");
       setCost("");
+      setChargeTarget("TENANT_DEPOSIT");
       setPhoto(null);
       setSelectedInspection("");
     } catch (err) {
       console.error("Error logging damage:", err);
       
-      // Extract the exact validation error from Django's response dictionary
       if (err.response && err.response.data) {
         const serverErrors = err.response.data;
         if (typeof serverErrors === "object") {
@@ -82,11 +82,11 @@ const DamageForm = () => {
 
   return (
     <div className="damage-form-container" style={{ padding: "30px", maxWidth: "600px", margin: "0 auto" }}>
-      <h2>Record Damage</h2>
+      <h2>Record Damage Entry</h2>
       {success && <p className="success-message" style={{ padding: "12px", background: "#dcfce7", color: "#166534", borderRadius: "6px" }}>{success}</p>}
       {error && <p className="error-message" style={{ padding: "12px", background: "#fee2e2", color: "#991b1b", borderRadius: "6px", fontWeight: "600" }}>{error}</p>}
 
-      <form onSubmit={handleSubmit} className="damage-form" style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+      <form onSubmit={handleSubmit} className="damage-form" style={{ display: "flex", flexDirection: "column", gap: "15px", marginTop: "20px" }}>
         
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
           <label style={{ fontSize: "14px", fontWeight: "600" }}>Link to Completed Inspection Audit:</label>
@@ -99,7 +99,7 @@ const DamageForm = () => {
             <option value="">-- Choose Inspection Log Reference --</option>
             {inspections.map((i) => (
               <option key={i.id} value={i.id}>
-                Unit {i.lease?.unit?.unit_number || "N/A"} - {i.inspection_type} ({i.date || "No Date"})
+                Unit {i.unit_number || "N/A"} - {i.inspection_type_display} ({i.date ? new Date(i.date).toLocaleDateString() : "No Date"})
               </option>
             ))}
           </select>
@@ -114,7 +114,22 @@ const DamageForm = () => {
             onChange={(e) => setDescription(e.target.value)}
             required
             style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-          />
+          >
+          </input>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+          <label style={{ fontSize: "14px", fontWeight: "600" }}>Financial Allocation Target:</label>
+          <select
+            value={chargeTarget}
+            onChange={(e) => setChargeTarget(e.target.value)}
+            required
+            style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+          >
+            <option value="TENANT_DEPOSIT">Deduct from Security Deposit</option>
+            <option value="DIRECT_BILL">Invoice Tenant Directly</option>
+            <option value="LANDLORD_ACC">Landlord Expense (Wear & Tear)</option>
+          </select>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>

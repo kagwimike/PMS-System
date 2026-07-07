@@ -88,13 +88,11 @@ const Navbar = ({ user, onLogout }) => {
 
         {user ? (
           <div className="nav-right">
-
             <div
               className="bell-container"
               onClick={toggleNotifications}
             >
               🔔
-
               {unreadCount > 0 && (
                 <span className="notification-badge">
                   {unreadCount}
@@ -209,6 +207,15 @@ const Navbar = ({ user, onLogout }) => {
                 >
                   Payment History
                 </Link>
+
+                {/* 🛡️ Tenant Escrow View link */}
+                <Link
+                  to="/my-deposits"
+                  onClick={closeSidebar}
+                  style={{ color: "#4fc3f7", fontWeight: "bold" }}
+                >
+                  🛡️ Deposit Balance Statement
+                </Link>
               </>
             ) : (
               <>
@@ -224,6 +231,15 @@ const Navbar = ({ user, onLogout }) => {
                   onClick={closeSidebar}
                 >
                   Collected Payments
+                </Link>
+
+                {/* 💸 Landlord Escrow Process Link */}
+                <Link
+                  to="/refund-deposit"
+                  onClick={closeSidebar}
+                  style={{ color: "#81c784", fontWeight: "bold" }}
+                >
+                  💸 Process Deposit Refund
                 </Link>
               </>
             )}

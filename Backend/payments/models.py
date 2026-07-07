@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 INVOICE_TYPE_CHOICES = [
     ('RENT', 'Monthly Rent'),
@@ -37,7 +38,6 @@ class Invoice(models.Model):
     invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPE_CHOICES, default='RENT')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     
     # Billing Timeline
@@ -62,7 +62,7 @@ class Invoice(models.Model):
         self.save()
 
     def __str__(self):
-        return f"Invoice #{self.id} - {self.get_invoice_type_display()} (${self.amount}) - {self.status}"
+        return f"Invoice #{self.id} - {self.get_invoice_type_display()} (KES {self.amount}) - {self.status}"
 
 
 class Payment(models.Model):
@@ -74,7 +74,6 @@ class Payment(models.Model):
         on_delete=models.CASCADE, 
         related_name='payments'
     )
-    # Track the explicit user executing the checkout transaction payload
     tenant = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -83,36 +82,62 @@ class Payment(models.Model):
     )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='MPESA')
-    
-    # 🔐 Gateway Reconciliation Fields
-    # Houses M-Pesa CheckoutRequestID / ReceiptNumbers (e.g., QAL12345XYZ) or Stripe Intent IDs
     transaction_reference = models.CharField(max_length=100, unique=True, blank=True, null=True)
-    
-    # Safely stores processing metadata logs or raw webhook failure payloads straight from Safaricom/Gateways
     gateway_response = models.JSONField(blank=True, null=True)
-    
     is_confirmed = models.BooleanField(default=False)
     paid_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-paid_at']
 
-    def save(self, *file, **kwargs):
+    def save(self, *args, **kwargs):
         """
-        Overridden save execution block:
         When a payment is successfully confirmed, it auto-increments 
         the associated Invoice paid margins.
         """
-        is_new = not self.pk
-        super().save(*file, **kwargs)
+        super().save(*args, **kwargs)
         
-        # If the payment is confirmed, update the linked invoice allocation pools
         if self.is_confirmed and self.invoice:
-            # Re-calculate total confirmed collections for this invoice
             total_paid = sum(p.amount for p in self.invoice.payments.filter(is_confirmed=True))
             self.invoice.amount_paid = total_paid
             self.invoice.update_status()
 
     def __str__(self):
         ref = self.transaction_reference or f"Draft-{self.id}"
-        return f"Payment {ref} (${self.amount}) for Invoice #{self.invoice.id}"
+        return f"Payment {ref} (KES {self.amount}) for Invoice #{self.invoice.id}"
+
+
+class DepositRefund(models.Model):
+    """
+    Tracks safety margins and outward financial payloads for escrow deposit paybacks.
+    Calculates moving balances and checks against outstanding tenant damages.
+    """
+    lease = models.ForeignKey(
+        'leases.Lease',
+        on_delete=models.PROTECT,
+        related_name='deposit_refunds'
+    )
+    amount_refunded = models.DecimalField(max_digits=12, decimal_places=2)
+    deductions_retained = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        default=0.00,
+        help_text="Amount withheld to settle damage invoices or unpaid utility/rent balances."
+    )
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='BANK_TRANSFER')
+    transaction_reference = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True, help_text="Reasoning for partial deductions or refund metadata.")
+    
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='processed_refunds'
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Refund #{self.id} for Lease #{self.lease.id} - Net: KES {self.amount_refunded}"

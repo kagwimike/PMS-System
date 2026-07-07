@@ -23,7 +23,13 @@ import VendorDashboard from "./pages/VendorDashboard";
 import About from "./components/About";
 import Footer from "./components/Footer";
 import PropertyList from "./pages/PropertyList";
-import TenantInvoices from "./components/TenantInvoices";
+
+// Financial & Escrow Balance Sheet Components
+import TenantInvoices from "./components/TenantInvoices"; 
+import OwnerInvoices from "./pages/OwnerInvoices"; 
+import PaymentHistory from "./pages/PaymentHistory"; 
+import DepositRefundForm from "./pages/DepositRefundForm";
+import TenantDepositView from "./pages/TenantDepositView";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -32,7 +38,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Synchronize state hook with localStorage on initialization
   const refreshUserSession = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -56,12 +61,14 @@ function App() {
   }
 
   const isManagement = user?.role === "OWNER" || user?.role === "ADMIN";
+  
+  // Look up current lease context from state memory blocks
+  const activeLeaseId = localStorage.getItem("active_lease_id") || 1;
 
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       
-      {/* ✅ FIX: Pass down dynamic user state context directly into your navigation links */}
       <Navbar user={user} onLogout={refreshUserSession} />
       
       <Routes>
@@ -71,14 +78,13 @@ function App() {
         <Route path="/properties" element={<PropertyList />} />
         
         {/* Authentication Router Blocks */}
-        {/* Pass session refresher to login so state updates instantly upon submission */}
         <Route path="/login" element={<Login onLoginSuccess={refreshUserSession} />} />
         <Route path="/register" element={<Register />} />
 
         {/* Dashboards */}
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/owner" element={<OwnerDashboard />} />
-        <Route path="/tenant" element={<TenantDashboard />} />
+        <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
+        <Route path="/owner" element={user ? <OwnerDashboard /> : <Navigate to="/login" />} />
+        <Route path="/tenant" element={user ? <TenantDashboard /> : <Navigate to="/login" />} />
 
         {/* 📋 Operations Management */}
         <Route path="/leases/add" element={<AddLease />} />
@@ -87,8 +93,22 @@ function App() {
         <Route path="/owner/properties" element={<OwnerProperties />} />
         <Route path="/owner/add-property" element={<AddProperty />} />
 
-        {/* 💳 Payments Engine Routing Block */}
-        <Route path="/tenant/billing" element={<TenantInvoices />} />
+        {/* 💳 Payments & Escrow Engine Routing Block */}
+        {user?.role === "TENANT" ? (
+          <>
+            <Route path="/tenant/billing" element={<TenantInvoices />} />
+            <Route path="/payment-history" element={<PaymentHistory />} />
+            <Route path="/my-deposits" element={<TenantDepositView activeLeaseId={activeLeaseId} />} />
+          </>
+        ) : isManagement ? (
+          <>
+            <Route path="/owner/invoices" element={<OwnerInvoices />} />
+            <Route path="/payment-history" element={<PaymentHistory />} />
+            <Route path="/refund-deposit" element={<DepositRefundForm leaseId={activeLeaseId} />} />
+          </>
+        ) : (
+          <Route path="/payment-history" element={<Navigate to="/login" />} />
+        )}
 
         {/* 🔧 Conditional Maintenance Subtrees */}
         {isManagement ? (

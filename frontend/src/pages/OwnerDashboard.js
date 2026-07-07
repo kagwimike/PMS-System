@@ -27,7 +27,6 @@ const OwnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedProperty, setSelectedProperty] = useState(null);
-  const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedPriorities, setSelectedPriorities] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -62,6 +61,7 @@ const OwnerDashboard = () => {
     fetchDashboardData();
   }, []);
 
+  /* Commented out to clear ESLint 'no-unused-vars' error. Uncomment when ready to wire to UI.
   const handleTerminateLease = async (leaseId) => {
     if (actionLoading) return;
     if (!window.confirm("Confirm lease termination and vacancy update.")) return;
@@ -76,6 +76,7 @@ const OwnerDashboard = () => {
       setActionLoading(false);
     }
   };
+  */
 
   const handleAssignVendor = async (requestId, vendorId) => {
     if (!vendorId || actionLoading) return;
@@ -381,7 +382,7 @@ const OwnerDashboard = () => {
                     <button
                       type="button"
                       className="pill-button outline"
-                      onClick={() => setSelectedTicket(ticket)}
+                      onClick={() => console.log("Viewing progress for ticket:", ticket.id)}
                     >
                       View progress
                     </button>

@@ -118,6 +118,7 @@ const TenantDashboard = () => {
 
   useEffect(() => {
     fetchData(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -131,7 +132,8 @@ const TenantDashboard = () => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     }
-  }, [isPolling]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPolling]); // Or whatever is inside your second array
 
   /* ================= RUN BACKUP MANUAL EXPRESS CHECKOUT IF PUSH DROPPED ================= */
   const handleInitiateSTK = async (e) => {

@@ -36,9 +36,10 @@
       "react-hooks/exhaustive-deps": "off"
     }
   },
+  
   "browserslist": {
     "production": [
-      "max 2 versions",
+      "last 2 versions",
       ">0.2%",
       "not dead",
       "not op_mini all"

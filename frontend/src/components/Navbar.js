@@ -81,10 +81,7 @@ const Navbar = ({ user, onLogout }) => {
           <Link to="/">PMS Pro</Link>
         </div>
 
-        <div className="nav-links">
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-        </div>
+        {/* Removed standard desktop nav-links from here */}
 
         {user ? (
           <div className="nav-right">
@@ -154,6 +151,14 @@ const Navbar = ({ user, onLogout }) => {
             </div>
 
             <h4>Core</h4>
+
+            {/* Added Home Link here */}
+            <Link
+              to="/"
+              onClick={closeSidebar}
+            >
+              Home
+            </Link>
 
             <Link
               to="/properties"
@@ -309,6 +314,7 @@ const Navbar = ({ user, onLogout }) => {
 
             <h4>Company</h4>
 
+            {/* Kept/Cleaned up About Link here under Company */}
             <Link
               to="/about"
               onClick={closeSidebar}

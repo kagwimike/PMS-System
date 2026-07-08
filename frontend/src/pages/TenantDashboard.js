@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import API from "../services/api";
 import { 
   FaEye, FaTrash, FaArrowUp, FaArrowDown, 
   FaChevronLeft, FaChevronRight, FaCheckCircle, 
-  FaWhatsapp, FaCreditCard, FaTimes, FaTools, FaSpinner 
+  FaWhatsapp, FaCreditCard, FaTimes, FaTools, FaSpinner, FaPlus 
 } from "react-icons/fa";
 import "../styles/TenantDashboard.css";
 
@@ -11,39 +11,38 @@ const TenantDashboard = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const isAdminOrOwner = user?.role === "ADMIN" || user?.role === "OWNER";
 
+  // Data States
   const [leases, setLeases] = useState([]);
   const [requests, setRequests] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [unpaidInvoices, setUnpaidInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // State Additions for Automated M-Pesa Tracking
-  const [unpaidInvoices, setUnpaidInvoices] = useState([]);
+  // Modal Visibility States
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Form & Action States
   const [phoneNumber, setPhoneNumber] = useState("");
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
   const [isPolling, setIsPolling] = useState(false);
-
-  // State for Viewing Maintenance Request / Vendor Details & Updating Progress
-  const [selectedTicket, setSelectedTicket] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Form State for reporting new damage
+  // New Maintenance Ticket Form State
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketDesc, setTicketDesc] = useState("");
   const [ticketFile, setTicketFile] = useState(null);
   const [submittingTicket, setSubmittingTicket] = useState(false);
 
+  // Pagination & Sorting
   const [currentPage, setCurrentPage] = useState(1);
-  const [paymentSort, setPaymentSort] = useState({
-    field: "date",
-    direction: "desc",
-  });
-
+  const [paymentSort, setPaymentSort] = useState({ field: "date", direction: "desc" });
   const itemsPerPage = 5;
 
-  /* ================= FETCH DATA LOGIC (AUTOMATED HANDSHAKE) ================= */
-  const fetchData = async (showLoader = false) => {
+  /* ================= FETCH DATA FROM SERVER ================= */
+  const fetchData = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
       const results = await Promise.allSettled([
@@ -53,35 +52,18 @@ const TenantDashboard = () => {
         API.get("/payments/invoices/"), 
       ]);
 
-      if (results[0].status === "fulfilled") {
-        setLeases(results[0].value.data);
-      } else {
-        console.error("Lease Fetch Exception Trace:", results[0].reason);
-        setLeases([]);
-      }
+      if (results[0].status === "fulfilled") setLeases(results[0].value.data);
+      if (results[2].status === "fulfilled") setPayments(results[2].value.data);
 
       if (results[1].status === "fulfilled") {
         const ticketData = results[1].value.data;
         setRequests(ticketData);
-        
-        // Dynamic Modal State Sync: Keeps the popup updated if data reloads mid-view
         if (selectedTicket) {
           const updatedTicket = ticketData.find(t => t.id === selectedTicket.id);
           if (updatedTicket) setSelectedTicket(updatedTicket);
         }
-      } else {
-        console.error("Maintenance Fetch Exception Trace:", results[1].reason);
-        setRequests([]);
       }
 
-      if (results[2].status === "fulfilled") {
-        setPayments(results[2].value.data);
-      } else {
-        console.error("Payments Ledger Engine Error Handled Gracefully:", results[2].reason);
-        setPayments([]);
-      }
-
-      /* === INVOICE MANAGEMENT & POLLING DETECTOR === */
       if (results[3].status === "fulfilled") {
         const rawInvoices = Array.isArray(results[3].value.data) 
           ? results[3].value.data 
@@ -91,51 +73,42 @@ const TenantDashboard = () => {
           const statusStr = String(inv.status || "").toUpperCase();
           return statusStr !== "PAID" && statusStr !== "COMPLETED";
         });
-
         setUnpaidInvoices(activeUnpaid);
 
-        const currentOnboardingFeePending = activeUnpaid.some(inv => 
+        // Turn on auto-refresh if an activation/initial invoice is pending
+        const hasPendingActivation = activeUnpaid.some(inv => 
           String(inv.description || "").toLowerCase().includes("activation") || 
           String(inv.description || "").toLowerCase().includes("initial")
         );
-
-        if (currentOnboardingFeePending) {
-          setIsPolling(true);
-        } else {
-          setIsPolling(false);
-        }
+        setIsPolling(hasPendingActivation);
       } else {
-        console.error("Invoice Query Handshake Failed:", results[3].reason);
-        setUnpaidInvoices([]);
         setIsPolling(false);
       }
     } catch (err) {
-      console.error("Unexpected failure across asynchronous thread array:", err);
+      console.error("Error loading dashboard data:", err);
     } finally {
       if (showLoader) setLoading(false);
     }
-  };
+  }, [selectedTicket]);
 
   useEffect(() => {
     fetchData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Long-polling check to auto-update when M-Pesa completes
   useEffect(() => {
     let intervalId;
     if (isPolling) {
       intervalId = setInterval(() => {
-        console.log("⚙️ Syncing ledger allocations with validation webhook logs...");
         fetchData(false); 
       }, 4000);
     }
     return () => {
       if (intervalId) clearInterval(intervalId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPolling]); // Or whatever is inside your second array
+    };
+  }, [isPolling, fetchData]);
 
-  /* ================= RUN BACKUP MANUAL EXPRESS CHECKOUT IF PUSH DROPPED ================= */
+  /* ================= M-PESA STK PUSH LOGIC ================= */
   const handleInitiateSTK = async (e) => {
     e.preventDefault();
     if (!selectedInvoice) return;
@@ -168,18 +141,17 @@ const TenantDashboard = () => {
         }, 4000);
       }
     } catch (err) {
-      console.error("Payment pipeline execution error logic:", err);
-      const errorMsg = err.response?.data?.error || "Connection dropped. Verify config params.";
+      const errorMsg = err.response?.data?.error || "Payment connection failed. Please try again.";
       setPaymentMessage(`❌ ${errorMsg}`);
     } finally {
       setProcessingPayment(false);
     }
   };
 
-  /* ================= SUBMIT MAINTENANCE & WHATSAPP REDIRECT ================= */
+  /* ================= NEW MAINTENANCE REQUEST MODAL SUBMIT ================= */
   const handleReportDamage = async (e) => {
     e.preventDefault();
-    if (leases.length === 0) return alert("You must have an active linked lease to file tickets.");
+    if (leases.length === 0) return alert("You must have an active lease to report maintenance issues.");
 
     setSubmittingTicket(true);
     const activeLease = leases[0];
@@ -189,65 +161,51 @@ const TenantDashboard = () => {
     formData.append("description", ticketDesc);
     formData.append("property", activeLease.unit?.property?.id || activeLease.property?.id || "");
     formData.append("unit", activeLease.unit?.id || "");
-    if (ticketFile) {
-      formData.append("damage_photo", ticketFile);
-    }
+    if (ticketFile) formData.append("damage_photo", ticketFile);
 
     try {
       await API.post("/maintenance/requests/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      alert("Maintenance ticket successfully logged in system!");
+      alert("Maintenance request submitted successfully.");
 
+      // Optional: Open Landlord WhatsApp notification
       const landlordPhone = "254700000000"; 
-      const messageText = `🚨 *NEW DAMAGE REPORT* 🚨\n\n*Tenant:* ${user.first_name} ${user.last_name}\n*Issue:* ${ticketTitle}\n*Details:* ${ticketDesc}\n\nLogged in the PMS portal. Please review the profile dashboard image upload link.`;
-      
+      const messageText = `🚨 *NEW MAINTENANCE REQUEST* 🚨\n\n*Tenant:* ${user.first_name} ${user.last_name}\n*Issue:* ${ticketTitle}\n*Details:* ${ticketDesc}`;
       const whatsappUrl = `https://wa.me/${landlordPhone}?text=${encodeURIComponent(messageText)}`;
       window.open(whatsappUrl, "_blank");
 
+      // Reset Form and close modal
       setTicketTitle("");
       setTicketDesc("");
       setTicketFile(null);
+      setIsReportModalOpen(false);
       fetchData(false);
     } catch (err) {
-      console.error("❌ Failed to post damage entry payload:", err);
-      if (err.response && err.response.data) {
-        const serverErrors = err.response.data;
-        if (typeof serverErrors === "object") {
-          const errorDetails = Object.entries(serverErrors)
-            .map(([field, messages]) => `${field.toUpperCase()}: ${Array.isArray(messages) ? messages.join(" ") : messages}`)
-            .join("\n");
-          alert(`❌ Form Rejection (HTTP 400 Bad Request):\n\n${errorDetails}`);
-        } else {
-          alert(`❌ Server Configuration Exception: ${JSON.stringify(serverErrors)}`);
-        }
-      } else {
-        alert("❌ Error reporting maintenance issue. Connection dropped or gateway unresolvable.");
-      }
+      console.error("Error submitting ticket:", err);
+      alert("Could not save maintenance request. Please verify your form values.");
     } finally {
       setSubmittingTicket(false);
     }
   };
 
-  /* ================= TENANT PROGRESS TRACKING MUTATIONS ================= */
+  /* ================= UPDATE TICKET STATUS ================= */
   const handleUpdateTicketStatus = async (id, targetStatus) => {
     const confirmationMessages = {
-      "IN_PROGRESS": "Confirm you want to flag this ticket as actively IN PROGRESS?",
-      "COMPLETED": "Mark this issue as complete? This notifies management for inspection.",
-      "VERIFIED": "Confirm this vendor maintenance task is completed up to your standards?"
+      "IN_PROGRESS": "Mark this request as In Progress?",
+      "COMPLETED": "Mark this issue as Completed? Management will be notified to inspect.",
+      "VERIFIED": "Confirm that this maintenance work has been finished to your satisfaction?"
     };
 
-    if (!window.confirm(confirmationMessages[targetStatus] || `Change task status to ${targetStatus}?`)) return;
+    if (!window.confirm(confirmationMessages[targetStatus] || `Change status to ${targetStatus}?`)) return;
 
     setUpdatingStatus(true);
     try {
       await API.patch(`/maintenance/requests/${id}/`, { status: targetStatus });
-      alert(`Status updated to ${targetStatus.replace(/_/g, " ")} successfully!`);
       await fetchData(false);
     } catch (err) {
-      console.error("Progress transformation error handshake:", err);
-      alert(err.response?.data?.error || "Failed to submit progress mutation. Check API permissions.");
+      alert(err.response?.data?.error || "Failed to update status.");
     } finally {
       setUpdatingStatus(false);
     }
@@ -265,12 +223,7 @@ const TenantDashboard = () => {
     }
   };
 
-  /* ================= HELPER BADGE CLASS CONVERSIONS ================= */
-  const getStatusClass = (status) => `status ${status?.toLowerCase().replace(/_/g, "-").replace(/ /g, "-") || "pending"}`;
-  const getPriorityClass = (priority) => `priority ${priority?.toLowerCase() || "medium"}`;
-  const getPaymentStatusClass = (status) => `payment-status ${status?.toLowerCase() || "unpaid"}`;
-
-  /* ================= SORT MANAGEMENT SYSTEM ================= */
+  /* ================= LAYOUT SORTING & STYLING HELPERS ================= */
   const handleSort = (field) => {
     setPaymentSort((prev) => ({
       ...prev,
@@ -278,6 +231,9 @@ const TenantDashboard = () => {
       direction: prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
+
+  const getStatusClass = (status) => `status ${status?.toLowerCase().replace(/_/g, "-").replace(/ /g, "-") || "pending"}`;
+  const getPriorityClass = (priority) => `priority ${priority?.toLowerCase() || "medium"}`;
 
   const sortedPayments = [...payments].sort((a, b) => {
     let valA = a[paymentSort.field];
@@ -290,32 +246,27 @@ const TenantDashboard = () => {
     return valA < valB ? 1 : -1;
   });
 
-  /* ================= CALCULATION CARD COMPILATIONS ================= */
   const totalRent = leases.reduce((sum, lease) => sum + (parseFloat(lease.rent_amount) || 0), 0);
   const totalPaid = payments
     .filter((p) => p.is_confirmed === true || p.status === "PAID" || p.status === "COMPLETED")
     .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
   const outstanding = totalRent - totalPaid;
 
-  /* ================= PAGINATION CONFIG ================= */
   const totalPages = Math.max(1, Math.ceil(requests.length / itemsPerPage));
-  const paginatedRequests = requests.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedRequests = requests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return <p className="loading">Loading dashboard profile...</p>;
+  if (loading) return <p className="loading">Loading your dashboard...</p>;
 
   if (user?.role === "TENANT" && leases.length === 0) {
     return (
       <div className="unlinked-tenant-container">
         <div className="unlinked-card">
-          <h2>Welcome to Your Portal, {user.first_name || "Tenant"}!</h2>
+          <h2>Welcome, {user.first_name || "Tenant"}!</h2>
           <p className="unlinked-notice">
-            Your account setup is complete. However, your dashboard metrics and lease details will remain inactive until your landlord links your profile to your physical unit.
+            Your profile has been created successfully. Your dashboard and payment history will become active as soon as your landlord links your account to your rental unit.
           </p>
           <div className="unlinked-email-box">
-            <span className="email-label">Provide this registration email to your landlord:</span>
+            <span className="email-label">Provide this email to your landlord:</span>
             <br />
             <strong className="email-value">{user.email}</strong>
           </div>
@@ -327,20 +278,21 @@ const TenantDashboard = () => {
   return (
     <div className="tenant-dashboard">
       
-      {/* 🚀 AUTOMATED REAL-TIME VERIFICATION ALERT CARD */}
+      {/* 📱 ACTIVE MPESA STK PROMPT LISTENER NOTICE */}
       {isPolling && (
         <div className="alert alert-warning processing-banner" style={{ background: "#fff3cd", borderLeft: "5px solid #ffc107", padding: "15px", marginBottom: "20px", borderRadius: "4px" }}>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div className="spinner-mini" style={{ border: "3px solid #f3f3f3", borderTop: "3px solid #ffc107", borderRadius: "50%", width: "20px", height: "20px", animation: "spin 1s linear infinite" }}></div>
+            <div style={{ border: "3px solid #f3f3f3", borderTop: "3px solid #ffc107", borderRadius: "50%", width: "20px", height: "20px", animation: "spin 1s linear infinite" }}></div>
             <div>
-              <strong>⚡ Instant Activation STK Prompt Triggered!</strong>
-              <p style={{ margin: "5px 0 0 0", color: "#664d03" }}>Please input your M-Pesa PIN on your mobile device. The system is listening in real time to activate your lease instantly upon transaction completion.</p>
+              <strong>M-Pesa Payment Request Sent</strong>
+              <p style={{ margin: "5px 0 0 0", color: "#664d03", fontSize: "14px" }}>Check your mobile phone for the M-Pesa PIN prompt. The system will automatically refresh your dashboard once paid.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ================= SUMMARY CARD COUNTERS ================= */}
+      {/* ================= ACCOUNT ACCOUNT METRICS OVERVIEW ================= */}
       <div className="summary-grid">
         <div className="summary-card">
           <h4>Total Rent Obligations</h4>
@@ -356,9 +308,9 @@ const TenantDashboard = () => {
         </div>
       </div>
 
-      {/* ================= 💳 UNPAID INVOICES / BILLING SECTION ================= */}
+      {/* ================= UNPAID INVOICES SECTION ================= */}
       <div className="card outstanding-invoices-card">
-        <h3>Outstanding Pending Invoices</h3>
+        <h3>Pending Invoices</h3>
         <div className="responsive-table-wrapper">
           <table className="dashboard-table">
             <thead>
@@ -373,13 +325,13 @@ const TenantDashboard = () => {
             <tbody>
               {unpaidInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="no-data-msg">🎉 All rent payments are fully settled! No pending balances.</td>
+                  <td colSpan="5" className="no-data-msg">🎉 All invoices are fully settled! No pending balances due.</td>
                 </tr>
               ) : (
                 unpaidInvoices.map((inv) => (
                   <tr key={inv.id}>
                     <td className="bold-text">#INV-{inv.id}</td>
-                    <td className="muted-text">{inv.description || "Monthly Rental Charge"}</td>
+                    <td className="muted-text">{inv.description || "Monthly Rent"}</td>
                     <td className="amount-due-text">KSh {parseFloat(inv.balance_due || inv.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="muted-text">{inv.due_date}</td>
                     <td>
@@ -388,7 +340,7 @@ const TenantDashboard = () => {
                         className="mpesa-pay-btn"
                         disabled={isPolling}
                       >
-                        <FaCreditCard size={12} /> {isPolling ? "Awaiting Callback..." : "Pay via M-Pesa"}
+                        <FaCreditCard size={12} /> {isPolling ? "Processing..." : "Pay via M-Pesa"}
                       </button>
                     </td>
                   </tr>
@@ -399,235 +351,37 @@ const TenantDashboard = () => {
         </div>
       </div>
 
-      {/* ================= POPUP OVERLAY MODAL WINDOW (M-PESA) ================= */}
-      {selectedInvoice && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <button onClick={() => setSelectedInvoice(null)} className="modal-close-btn">
-              <FaTimes />
-            </button>
-            <h3 className="modal-title"><FaCreditCard /> Lipa Na M-Pesa Online</h3>
-            
-            <div className="modal-summary-box">
-              <p><strong>Reference:</strong> #INV-{selectedInvoice.id}</p>
-              <p><strong>Total Charge:</strong> KSh {parseFloat(selectedInvoice.balance_due || selectedInvoice.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-            </div>
-
-            <form onSubmit={handleInitiateSTK} className="modal-form">
-              <div className="form-group">
-                <label className="input-label">Safaricom Handset Phone Number</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. 0712345678 or 254712345678"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  className="modal-input"
-                />
-              </div>
-
-              {paymentMessage && (
-                <div className={`payment-feedback-msg ${paymentMessage.includes("❌") ? "error-msg" : "success-msg"}`}>
-                  {paymentMessage}
-                </div>
-              )}
-
-              <div className="modal-action-buttons">
-                <button type="button" onClick={() => setSelectedInvoice(null)} disabled={processingPayment} className="btn-cancel">Cancel</button>
-                <button type="submit" disabled={processingPayment} className="btn-submit-payment">
-                  {processingPayment ? "Requesting STK Pushes..." : "Send Payment Request"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ================= 🔧 POPUP OVERLAY MODAL WINDOW (TICKET DETAILS & PROGRESS INTERFACE) ================= */}
-      {selectedTicket && (
-        <div className="modal-overlay">
-          <div className="modal-content maintenance-details-modal">
-            <button onClick={() => setSelectedTicket(null)} className="modal-close-btn">
-              <FaTimes />
-            </button>
-            <h3 className="modal-title"><FaTools /> Maintenance Job Progress</h3>
-            
-            <div className="modal-details-body" style={{ textAlign: "left", marginTop: "15px" }}>
-              <p style={{ margin: "8px 0" }}><strong>Issue Title:</strong> {selectedTicket.title}</p>
-              <p style={{ margin: "8px 0" }}><strong>Description:</strong> {selectedTicket.description}</p>
-              <p style={{ margin: "8px 0" }}><strong>Reported Date:</strong> {selectedTicket.created_at ? selectedTicket.created_at.split("T")[0] : selectedTicket.date || "N/A"}</p>
-              
-              <div style={{ display: "flex", gap: "15px", margin: "12px 0" }}>
-                <span>Status: <strong className={getStatusClass(selectedTicket.status)}>{selectedTicket.status?.replace(/_/g, " ")}</strong></span>
-                <span>Priority: <strong className={getPriorityClass(selectedTicket.priority)}>{selectedTicket.priority}</strong></span>
-              </div>
-
-              {selectedTicket.damage_photo && (
-                <div style={{ margin: "15px 0" }}>
-                  <strong>Uploaded Visual Proof:</strong>
-                  <img 
-                    src={selectedTicket.damage_photo} 
-                    alt="Damage Evidence" 
-                    style={{ width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "6px", marginTop: "5px", border: "1px solid #ddd" }}
-                  />
-                </div>
-              )}
-
-              <hr style={{ margin: "20px 0", border: "0", borderTop: "1px solid #eee" }} />
-
-              {/* 📈 REAL-TIME TRACKING PROGRESS FLOWBAR BAR */}
-              <h4 style={{ marginBottom: "15px", color: "#2c3e50" }}>Progress Pipeline</h4>
-              <div className="progress-pipeline-wrapper" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", background: "#f8f9fa", padding: "12px", borderRadius: "8px" }}>
-                {["PENDING", "IN_PROGRESS", "COMPLETED", "VERIFIED"].map((stage, idx, arr) => {
-                  const stagesMap = { PENDING: 0, IN_PROGRESS: 1, COMPLETED: 2, VERIFIED: 3 };
-                  const currentIdx = stagesMap[selectedTicket.status] ?? 0;
-                  const isPassed = idx <= currentIdx;
-                  
-                  return (
-                    <React.Fragment key={stage}>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                        <div style={{
-                          width: "24px", height: "24px", borderRadius: "50%", 
-                          background: isPassed ? "#2ecc71" : "#dcdde1", color: "#fff",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "11px", fontWeight: "bold"
-                        }}>
-                          {idx + 1}
-                        </div>
-                        <span style={{ fontSize: "10px", marginTop: "4px", color: isPassed ? "#2c3e50" : "#7f8c8d", fontWeight: isPassed ? "600" : "4px" }}>
-                          {stage.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                      {idx < arr.length - 1 && (
-                        <div style={{ flex: 1, height: "3px", background: idx < currentIdx ? "#2ecc71" : "#dcdde1", margin: "0 4px", transform: "translateY(-8px)" }} />
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-
-              {/* 🛠️ DISPATCHED VENDOR TIMELINE BOX */}
-              <h4 style={{ marginBottom: "10px", color: "#2c3e50" }}>Dispatched Vendor Assignment</h4>
-              {selectedTicket.vendor ? (
-                <div className="vendor-info-box" style={{ background: "#f8f9fa", padding: "15px", borderRadius: "6px", borderLeft: "4px solid #3498db" }}>
-                  <p style={{ margin: "5px 0" }}><strong>Service Provider:</strong> {selectedTicket.vendor.name || `${selectedTicket.vendor.first_name || ""} ${selectedTicket.vendor.last_name || ""}`.trim() || "Assigned Contractor"}</p>
-                  {(selectedTicket.vendor.phone_number || selectedTicket.vendor.phone) && (
-                    <p style={{ margin: "5px 0" }}><strong>Contact Line:</strong> {selectedTicket.vendor.phone_number || selectedTicket.vendor.phone}</p>
-                  )}
-                  <p style={{ margin: "5px 0" }}><strong>Resolution Updates:</strong> {selectedTicket.vendor_notes || selectedTicket.notes || "No operational log notes filed yet."}</p>
-                  
-                  {/* Interactive Status Actions for Tenant Context */}
-                  <div className="tenant-tracking-actions" style={{ marginTop: "15px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    {selectedTicket.status === "PENDING" && (
-                      <button 
-                        type="button"
-                        disabled={updatingStatus}
-                        className="btn-status-track"
-                        style={{ background: "#3498db", color: "#fff", border: "0", padding: "8px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                        onClick={() => handleUpdateTicketStatus(selectedTicket.id, "IN_PROGRESS")}
-                      >
-                        {updatingStatus ? <FaSpinner className="spin" /> : "Mark as In Progress"}
-                      </button>
-                    )}
-
-                    {(selectedTicket.status === "PENDING" || selectedTicket.status === "IN_PROGRESS") && (
-                      <button 
-                        type="button"
-                        disabled={updatingStatus}
-                        className="btn-status-track"
-                        style={{ background: "#2ecc71", color: "#fff", border: "0", padding: "8px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                        onClick={() => handleUpdateTicketStatus(selectedTicket.id, "COMPLETED")}
-                      >
-                        {updatingStatus ? <FaSpinner className="spin" /> : "Mark as Completed"}
-                      </button>
-                    )}
-                    
-                    {(selectedTicket.status === "COMPLETED" || selectedTicket.status === "COMPLETED_BY_VENDOR") && (
-                      <button 
-                        type="button"
-                        disabled={updatingStatus}
-                        className="btn-status-track"
-                        style={{ background: "#27ae60", color: "#fff", border: "0", padding: "8px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                        onClick={() => handleUpdateTicketStatus(selectedTicket.id, "VERIFIED")}
-                      >
-                        {updatingStatus ? <FaSpinner className="spin" /> : "Verify Standards Implementation"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p style={{ fontStyle: "italic", color: "#7f8c8d", background: "#fdfefe", padding: "10px", borderRadius: "4px", border: "1px dashed #bdc3c7" }}>
-                  ⏳ Your landlord is working to dispatch an on-site technician. Please check updates shortly.
-                </p>
-              )}
-            </div>
-
-            <div className="modal-action-buttons" style={{ marginTop: "20px" }}>
-              <button type="button" onClick={() => setSelectedTicket(null)} className="btn-cancel" style={{ width: "100%" }}>Close Details View</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= LOG NEW DAMAGE / MAINTENANCE TICKET FORM ================= */}
-      <div className="card damage-reporting-card">
-        <h3>Report New Asset Damage / Maintenance</h3>
-        <form onSubmit={handleReportDamage} className="damage-form">
-          <div className="form-row">
-            <input 
-              type="text" 
-              placeholder="Title (e.g. Broken Bathroom Faucet)" 
-              value={ticketTitle} 
-              onChange={(e) => setTicketTitle(e.target.value)} 
-              required 
-              className="text-input"
-            />
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={(e) => setTicketFile(e.target.files[0])} 
-              className="file-input"
-            />
-          </div>
-          <textarea 
-            placeholder="Provide a description of the issue to the maintenance logs network..." 
-            value={ticketDesc} 
-            onChange={(e) => setTicketDesc(e.target.value)} 
-            required 
-            rows="3"
-            className="textarea-input"
-          />
-          <button type="submit" disabled={submittingTicket} className="whatsapp-submit-btn">
-            <FaWhatsapp size={18} /> {submittingTicket ? "Processing Records..." : "File Request & Share on WhatsApp"}
-          </button>
-        </form>
-      </div>
-
       <div className="dashboard-grid">
         {/* ================= LEASES VIEWBOX ================= */}
         <div className="card">
-          <h3>My Leases & Unit Inspections</h3>
+          <h3>Lease Information</h3>
           {leases.map((lease) => (
             <div key={lease.id} className="lease-box">
-              <p><strong>Property:</strong> {lease.unit?.property?.name || "Unassigned Asset"}</p>
+              <p><strong>Property:</strong> {lease.unit?.property?.name || "Unassigned Property"}</p>
               <p><strong>Unit Number:</strong> {lease.unit?.unit_number || "N/A"}</p>
               <p><strong>Start Date:</strong> {lease.start_date}</p>
               <p><strong>End Date:</strong> {lease.end_date}</p>
-              <div className="badge-container">
+              <div className="badge-container" style={{ margin: "10px 0" }}>
                 <span className={getStatusClass(lease.status)}>{lease.status}</span>
               </div>
               {isAdminOrOwner && lease.status !== "TERMINATED" && (
                 <button className="terminate-btn" onClick={() => handleTerminate(lease.id)}>
-                  <FaTrash /> Terminate
+                  <FaTrash /> Terminate Lease
                 </button>
               )}
             </div>
           ))}
         </div>
 
-        {/* ================= MAINTENANCE TRACKING ENGINE ================= */}
+        {/* ================= MAINTENANCE LIST PANEL ================= */}
         <div className="card">
-          <h3>Maintenance Requests</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+            <h3>Maintenance Requests</h3>
+            <button onClick={() => setIsReportModalOpen(true)} className="mpesa-pay-btn" style={{ background: "#3498db" }}>
+              <FaPlus /> Report Damage
+            </button>
+          </div>
+          
           <table className="dashboard-table">
             <thead>
               <tr>
@@ -640,30 +394,18 @@ const TenantDashboard = () => {
             <tbody>
               {paginatedRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="no-data">No logs recorded.</td>
+                  <td colSpan="4" className="no-data">No records found.</td>
                 </tr>
               ) : (
                 paginatedRequests.map((req) => (
                   <tr key={req.id}>
                     <td>{req.title}</td>
-                    <td>
-                      <span className={getStatusClass(req.status)}>{req.status?.replace(/_/g, " ")}</span>
-                    </td>
-                    <td>
-                      <span className={getPriorityClass(req.priority)}>{req.priority}</span>
-                    </td>
+                    <td><span className={getStatusClass(req.status)}>{req.status?.replace(/_/g, " ")}</span></td>
+                    <td><span className={getPriorityClass(req.priority)}>{req.priority}</span></td>
                     <td className="action-cell">
-                      <FaEye 
-                        className="action-icon" 
-                        title="View Details & Track Vendor" 
-                        onClick={() => setSelectedTicket(req)} 
-                      />
+                      <FaEye className="action-icon" title="View Details" onClick={() => setSelectedTicket(req)} />
                       {(req.status === "COMPLETED" || req.status === "COMPLETED_BY_VENDOR") && (
-                        <FaCheckCircle 
-                          className="action-icon check-verify-icon" 
-                          title="Verify Completion"
-                          onClick={() => handleUpdateTicketStatus(req.id, "VERIFIED")}
-                        />
+                        <FaCheckCircle className="action-icon check-verify-icon" title="Verify Work" onClick={() => handleUpdateTicketStatus(req.id, "VERIFIED")} />
                       )}
                     </td>
                   </tr>
@@ -685,7 +427,7 @@ const TenantDashboard = () => {
           )}
         </div>
 
-        {/* ================= PAYMENT HISTORY ================= */}
+        {/* ================= PAYMENT HISTORY LEDGER ================= */}
         <div className="card full-width">
           <h3>Payment History</h3>
           <table className="dashboard-table">
@@ -697,24 +439,24 @@ const TenantDashboard = () => {
                 <th onClick={() => handleSort("amount")} className="sortable-header">
                   Amount {paymentSort.field === "amount" && (paymentSort.direction === "asc" ? <FaArrowUp /> : <FaArrowDown />)}
                 </th>
-                <th>Method</th>
+                <th>Payment Method</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {sortedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="no-data">No transaction history.</td>
+                  <td colSpan="4" className="no-data">No previous transactions recorded.</td>
                 </tr>
               ) : (
-                sortedPayments.map((pay) => (
-                  <tr key={pay.id}>
-                    <td>{pay.date || pay.created_at?.split("T")[0]}</td>
-                    <td>KSh {parseFloat(pay.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td>{pay.payment_method || pay.method || "MPESA"}</td>
+                sortedPayments.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.date || p.created_at?.split("T")[0] || "N/A"}</td>
+                    <td className="bold-text">KSh {parseFloat(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td>{p.payment_method || "M-Pesa"}</td>
                     <td>
-                      <span className={pay.is_confirmed ? "payment-status paid" : getPaymentStatusClass(pay.status)}>
-                        {pay.is_confirmed ? "CONFIRMED" : (pay.status || "PENDING")}
+                      <span className={p.is_confirmed || p.status === "PAID" ? "status active" : "status pending"}>
+                        {p.status || (p.is_confirmed ? "PAID" : "PENDING")}
                       </span>
                     </td>
                   </tr>
@@ -724,6 +466,175 @@ const TenantDashboard = () => {
           </table>
         </div>
       </div>
+
+      {/* ================= MODAL: LIPA NA M-PESA CHECKOUT ================= */}
+      {selectedInvoice && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <button onClick={() => setSelectedInvoice(null)} className="modal-close-btn"><FaTimes /></button>
+            <h3 className="modal-title"><FaCreditCard /> Lipa Na M-Pesa</h3>
+            
+            <div className="modal-summary-box">
+              <p><strong>Invoice:</strong> #INV-{selectedInvoice.id}</p>
+              <p><strong>Amount:</strong> KSh {parseFloat(selectedInvoice.balance_due || selectedInvoice.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+            </div>
+
+            <form onSubmit={handleInitiateSTK} className="modal-form">
+              <div className="form-group">
+                <label className="input-label">M-Pesa Phone Number</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. 0712345678 or 254712345678"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required
+                  className="modal-input"
+                />
+              </div>
+
+              {paymentMessage && (
+                <div className={`payment-feedback-msg ${paymentMessage.includes("❌") ? "error-msg" : "success-msg"}`}>
+                  {paymentMessage}
+                </div>
+              )}
+
+              <div className="modal-action-buttons">
+                <button type="button" onClick={() => setSelectedInvoice(null)} disabled={processingPayment} className="btn-cancel">Cancel</button>
+                <button type="submit" disabled={processingPayment} className="btn-submit-payment">
+                  {processingPayment ? "Sending Prompt..." : "Pay Now"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: REPORT MAINTENANCE / DAMAGE ================= */}
+      {isReportModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <button onClick={() => setIsReportModalOpen(false)} className="modal-close-btn"><FaTimes /></button>
+            <h3 className="modal-title"><FaTools /> Report Maintenance / Damage</h3>
+            
+            <form onSubmit={handleReportDamage} className="modal-form" style={{ textAlign: "left", marginTop: "15px" }}>
+              <div className="form-group" style={{ marginBottom: "15px" }}>
+                <label className="input-label">Issue Title</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Broken bathroom tap, water leakage" 
+                  value={ticketTitle} 
+                  onChange={(e) => setTicketTitle(e.target.value)} 
+                  required 
+                  className="modal-input"
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "15px" }}>
+                <label className="input-label">Detailed Description</label>
+                <textarea 
+                  placeholder="Please describe the issue so the technician comes prepared..." 
+                  value={ticketDesc} 
+                  onChange={(e) => setTicketDesc(e.target.value)} 
+                  required 
+                  rows="4"
+                  className="modal-input"
+                  style={{ resize: "vertical" }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "20px" }}>
+                <label className="input-label">Upload Picture of Damage (Optional)</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => setTicketFile(e.target.files[0])} 
+                  className="modal-input"
+                  style={{ padding: "8px" }}
+                />
+              </div>
+
+              <div className="modal-action-buttons">
+                <button type="button" onClick={() => setIsReportModalOpen(false)} disabled={submittingTicket} className="btn-cancel">Cancel</button>
+                <button type="submit" disabled={submittingTicket} className="btn-submit-payment" style={{ background: "#27ae60" }}>
+                  {submittingTicket ? "Submitting..." : "Submit & Notify Landlord"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: TICKET TRACKING DETAILS ================= */}
+      {selectedTicket && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <button onClick={() => setSelectedTicket(null)} className="modal-close-btn"><FaTimes /></button>
+            <h3 className="modal-title"><FaTools /> Request Information</h3>
+            
+            <div className="modal-details-body" style={{ textAlign: "left", marginTop: "15px" }}>
+              <p><strong>Title:</strong> {selectedTicket.title}</p>
+              <p><strong>Description:</strong> {selectedTicket.description}</p>
+              <p><strong>Reported On:</strong> {selectedTicket.created_at ? selectedTicket.created_at.split("T")[0] : "N/A"}</p>
+              
+              <div style={{ display: "flex", gap: "15px", margin: "10px 0" }}>
+                <span>Status: <strong className={getStatusClass(selectedTicket.status)}>{selectedTicket.status?.replace(/_/g, " ")}</strong></span>
+                <span>Priority: <strong className={getPriorityClass(selectedTicket.priority)}>{selectedTicket.priority}</strong></span>
+              </div>
+
+              {selectedTicket.damage_photo && (
+                <div style={{ margin: "15px 0" }}>
+                  <strong>Uploaded Image:</strong>
+                  <img 
+                    src={selectedTicket.damage_photo} 
+                    alt="Damage Evidence" 
+                    style={{ width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "6px", marginTop: "5px", border: "1px solid #ddd" }}
+                  />
+                </div>
+              )}
+
+              <hr style={{ margin: "15px 0", border: "0", borderTop: "1px solid #eee" }} />
+
+              <h4 style={{ marginBottom: "10px" }}>Assigned Technician / Vendor</h4>
+              {selectedTicket.vendor ? (
+                <div style={{ background: "#f8f9fa", padding: "12px", borderRadius: "6px", borderLeft: "4px solid #3498db" }}>
+                  <p style={{ margin: "4px 0" }}><strong>Name:</strong> {selectedTicket.vendor.name || `${selectedTicket.vendor.first_name || ""} ${selectedTicket.vendor.last_name || ""}`.trim()}</p>
+                  {(selectedTicket.vendor.phone_number || selectedTicket.vendor.phone) && (
+                    <p style={{ margin: "4px 0" }}><strong>Phone Contact:</strong> {selectedTicket.vendor.phone_number || selectedTicket.vendor.phone}</p>
+                  )}
+                  <p style={{ margin: "4px 0" }}><strong>Technician Notes:</strong> {selectedTicket.vendor_notes || "No notes added yet."}</p>
+                  
+                  <div style={{ marginTop: "15px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                    {selectedTicket.status === "PENDING" && (
+                      <button type="button" disabled={updatingStatus} style={{ background: "#3498db", color: "#fff", border: "0", padding: "8px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, "IN_PROGRESS")}>
+                        Mark In Progress
+                      </button>
+                    )}
+                    {(selectedTicket.status === "PENDING" || selectedTicket.status === "IN_PROGRESS") && (
+                      <button type="button" disabled={updatingStatus} style={{ background: "#2ecc71", color: "#fff", border: "0", padding: "8px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, "COMPLETED")}>
+                        Mark Completed
+                      </button>
+                    )}
+                    {(selectedTicket.status === "COMPLETED" || selectedTicket.status === "COMPLETED_BY_VENDOR") && (
+                      <button type="button" disabled={updatingStatus} style={{ background: "#27ae60", color: "#fff", border: "0", padding: "8px 12px", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, "VERIFIED")}>
+                        Verify & Close Request
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ fontStyle: "italic", color: "#7f8c8d", background: "#fdfefe", padding: "10px", borderRadius: "4px", border: "1px dashed #bdc3c7" }}>
+                  ⏳ Waiting for administration to assign a technician to this task.
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginTop: "20px" }}>
+              <button type="button" onClick={() => setSelectedTicket(null)} className="btn-cancel" style={{ width: "100%" }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

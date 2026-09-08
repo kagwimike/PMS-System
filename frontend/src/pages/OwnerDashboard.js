@@ -50,8 +50,8 @@ const OwnerDashboard = () => {
       );
       setError("");
     } catch (err) {
-      console.error("Dashboard engine synchronization breakdown:", err);
-      setError("Failed to fetch live management data streams.");
+      console.error("Data synchronization error:", err);
+      setError("Failed to fetch live management data.");
     } finally {
       setLoading(false);
     }
@@ -60,23 +60,6 @@ const OwnerDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
-
-  /* Commented out to clear ESLint 'no-unused-vars' error. Uncomment when ready to wire to UI.
-  const handleTerminateLease = async (leaseId) => {
-    if (actionLoading) return;
-    if (!window.confirm("Confirm lease termination and vacancy update.")) return;
-
-    setActionLoading(true);
-    try {
-      await API.post(`/leases/${leaseId}/terminate/`);
-      await fetchDashboardData();
-    } catch (error) {
-      alert(error.response?.data?.error || "Failed to terminate lease transaction.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-  */
 
   const handleAssignVendor = async (requestId, vendorId) => {
     if (!vendorId || actionLoading) return;
@@ -88,7 +71,6 @@ const OwnerDashboard = () => {
         vendor: vendorId,
         priority
       });
-      alert("Vendor dispatched successfully!");
       await fetchDashboardData();
     } catch (err) {
       alert(err.response?.data?.error || "Could not complete vendor assignment.");
@@ -128,7 +110,7 @@ const OwnerDashboard = () => {
     return (
       <div className="owner-dashboard-shell loading-screen">
         <div className="loading-card">
-          <span>Synchronizing portfolio analytics...</span>
+          <span>Loading portfolio data...</span>
         </div>
       </div>
     );
@@ -148,29 +130,22 @@ const OwnerDashboard = () => {
     return (
       <div className="owner-dashboard-shell owner-dashboard-container">
         <div className="page-banner">
-          <button onClick={() => setSelectedProperty(null)} className="back-button">
-            <FaChevronLeft /> Back to Portfolio
-          </button>
           <div className="page-banner-copy">
-            <p className="section-label">Property Operations</p>
+            <button onClick={() => setSelectedProperty(null)} className="back-button">
+              <FaChevronLeft /> Portfolio
+            </button>
             <h2>{selectedProperty.name}</h2>
-            <p className="section-subtitle">
-              Manage units, tenant move-ins, and operational workflows for this asset.
-            </p>
           </div>
           <div className="page-banner-actions">
-            <Link to="/owner/add-property" className="pill-button primary">New Asset</Link>
-            <Link to="/properties" className="pill-button outline">Portfolio Library</Link>
+            <Link to="/owner/add-property" className="pill-button primary">+ New Asset</Link>
+            <Link to="/properties" className="pill-button outline">Library</Link>
           </div>
         </div>
 
         <div className="detail-grid">
           <div className="glass-card detail-summary-card">
             <div className="section-title-row">
-              <div>
-                <p className="section-label">Property Snapshot</p>
-                <h3>{selectedProperty.name}</h3>
-              </div>
+              <h3>Snapshot</h3>
               <span className="status-pill active">{propertyMetrics.type}</span>
             </div>
 
@@ -199,19 +174,16 @@ const OwnerDashboard = () => {
                 <p>{selectedProperty.city}, {selectedProperty.country}</p>
               </div>
               <div>
-                <span className="meta-label">Managed Units</span>
-                <p>{propertyMetrics.occupiedUnits} active leases</p>
+                <span className="meta-label">Leases</span>
+                <p>{propertyMetrics.occupiedUnits} active</p>
               </div>
             </div>
           </div>
 
           <div className="glass-card detail-panel-card">
             <div className="section-title-row">
-              <div>
-                <p className="section-label">Unit Management</p>
-                <h3>Unit Grid & Tenant Actions</h3>
-              </div>
-              <span className="status-pill info">Live update</span>
+              <h3>Unit Management</h3>
+              <span className="status-pill info">Live</span>
             </div>
             <ManageUnits propertyId={selectedProperty.id} />
           </div>
@@ -224,11 +196,7 @@ const OwnerDashboard = () => {
     <div className="owner-dashboard-shell owner-dashboard-container">
       <header className="dashboard-header">
         <div className="dashboard-branding">
-          <p className="section-label">Owner Command Center</p>
-          <h1>Modern SaaS Portfolio Dashboard</h1>
-          <p className="section-subtitle">
-            Monitor leased assets, maintenance flows and revenue health in a single command hub.
-          </p>
+          <h1>Portfolio Dashboard</h1>
         </div>
 
         <div className="header-actions">
@@ -236,7 +204,7 @@ const OwnerDashboard = () => {
             <FaPlus /> Add Property
           </Link>
           <Link to="/owner/properties" className="pill-button outline">
-            View Portfolio
+            Portfolio
           </Link>
         </div>
       </header>
@@ -266,7 +234,7 @@ const OwnerDashboard = () => {
         <div className="metric-card glass-card">
           <div className="metric-icon accent-amber"><FaTools /></div>
           <div>
-            <p className="metric-label">Open Requests</p>
+            <p className="metric-label">Open Tasks</p>
             <strong>{openTasks}</strong>
           </div>
         </div>
@@ -282,10 +250,7 @@ const OwnerDashboard = () => {
       <section className="dashboard-grid layout-grid-2">
         <div className="glass-card portfolio-summary-card">
           <div className="section-title-row">
-            <div>
-              <p className="section-label">Portfolio Pulse</p>
-              <h3>Asset mix & revenue</h3>
-            </div>
+            <h3>Analytics & Revenue</h3>
             <span className="status-pill active">Live</span>
           </div>
 
@@ -304,17 +269,14 @@ const OwnerDashboard = () => {
 
         <div className="glass-card quick-portfolio-card">
           <div className="section-title-row">
-            <div>
-              <p className="section-label">Properties at a glance</p>
-              <h3>Quick portfolio list</h3>
-            </div>
+            <h3>Properties</h3>
             <span className="status-pill info">{properties.length} assets</span>
           </div>
 
           {propertyCards.length === 0 ? (
             <div className="empty-state-card">
-              <p>No managed properties available yet.</p>
-              <Link to="/owner/add-property" className="pill-button primary">Add your first property</Link>
+              <p>No properties available.</p>
+              <Link to="/owner/add-property" className="pill-button primary">Add Property</Link>
             </div>
           ) : (
             <div className="property-card-grid">
@@ -332,11 +294,11 @@ const OwnerDashboard = () => {
                     <span className="pill-button outline small">Manage</span>
                   </div>
                   <div className="property-card-stats">
-                    <span>{item.occupiedUnits}/{item.totalUnits} occupied</span>
-                    <span>{item.availableUnits} vacant</span>
+                    <span>{item.occupiedUnits}/{item.totalUnits} Occ.</span>
+                    <span>{item.availableUnits} Vacant</span>
                   </div>
                   <div className="property-card-footer">
-                    <span className={`status-pill ${item.occupancy > 80 ? 'active' : item.occupancy > 40 ? 'warning' : 'offline'}`}>{item.occupancy}% occupied</span>
+                    <span className={`status-pill ${item.occupancy > 80 ? 'active' : item.occupancy > 40 ? 'warning' : 'offline'}`}>{item.occupancy}%</span>
                     <span className="detail-type">{item.type}</span>
                   </div>
                 </button>
@@ -349,16 +311,13 @@ const OwnerDashboard = () => {
       <section className="dashboard-grid layout-grid-2 lower-panel-grid">
         <div className="glass-card maintenance-workflow-card">
           <div className="section-title-row">
-            <div>
-              <p className="section-label">Maintenance Workflow</p>
-              <h3>Priority tickets</h3>
-            </div>
-            <span className="status-pill warning">Action required</span>
+            <h3>Maintenance Tasks</h3>
+            <span className="status-pill warning">{openTasks} pending</span>
           </div>
 
           {maintenanceRequests.length === 0 ? (
             <div className="empty-state-card">
-              <p>No active maintenance requests at the moment.</p>
+              <p>No maintenance requests.</p>
             </div>
           ) : (
             <div className="maintenance-list">
@@ -373,19 +332,9 @@ const OwnerDashboard = () => {
                       {ticket.status}
                     </span>
                   </div>
-                  <p className="maintenance-item-desc">{ticket.description}</p>
                   <div className="maintenance-item-meta">
                     <span className="meta-chip">Priority: {ticket.priority || 'MEDIUM'}</span>
                     <span className="meta-chip">Vendor: {ticket.vendor?.name || ticket.assigned_vendor_name || 'Unassigned'}</span>
-                  </div>
-                  <div className="maintenance-item-actions-row">
-                    <button
-                      type="button"
-                      className="pill-button outline"
-                      onClick={() => console.log("Viewing progress for ticket:", ticket.id)}
-                    >
-                      View progress
-                    </button>
                   </div>
                   {ticket.status === 'PENDING' && (
                     <div className="maintenance-actions">
@@ -419,11 +368,8 @@ const OwnerDashboard = () => {
 
         <div className="glass-card lease-overview-card">
           <div className="section-title-row">
-            <div>
-              <p className="section-label">Lease Tracker</p>
-              <h3>System action center</h3>
-            </div>
-            <span className="status-pill info">{allLeases.length} records</span>
+            <h3>Lease Tracker</h3>
+            <span className="status-pill info">{allLeases.length} total</span>
           </div>
           <ActionCenterTable properties={properties} leases={allLeases} />
         </div>

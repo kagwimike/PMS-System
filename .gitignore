@@ -1,15 +1,7 @@
-@"
-venv/
-Backend/venv/
 node_modules/
-frontend/node_modules/
+.env
+env/
+venv/
+.venv/
 __pycache__/
 *.pyc
-*.pyo
-.env
-*.sqlite3
-media/
-.DS_Store
-Thumbs.db
-"@ | Out-File -FilePath .gitignore -Encoding utf8
-.vercel

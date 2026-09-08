@@ -85,7 +85,7 @@ const Navbar = ({ user, onLogout }) => {
 
         {user ? (
           <div className="nav-right">
-            <div
+            {/* <div
               className="bell-container"
               onClick={toggleNotifications}
             >
@@ -95,7 +95,7 @@ const Navbar = ({ user, onLogout }) => {
                   {unreadCount}
                 </span>
               )}
-            </div>
+            </div> */}
 
             <div
               className="burger"

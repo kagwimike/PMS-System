@@ -98,3 +98,28 @@ class PropertyPricing(models.Model):
 
     def __str__(self):
         return f"Pricing for {self.property.name}"
+
+
+class PropertyAssignment(models.Model):
+    """
+    Maps Managers and Caretakers to specific properties.
+    A user can be assigned to multiple properties, and a property can have multiple managers/caretakers.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="property_assignments"
+    )
+    property = models.ForeignKey(
+        "Property",
+        on_delete=models.CASCADE,
+        related_name="assigned_staff"
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'property')
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.property.name}"
+

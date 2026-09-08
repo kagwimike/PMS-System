@@ -8,6 +8,8 @@ class User(AbstractUser):
     ROLE_CHOICES = (
         ('ADMIN', 'Admin'),
         ('OWNER', 'Owner'),
+        ('MANAGER', 'Manager'),
+        ('CARETAKER', 'Caretaker'),
         ('TENANT', 'Tenant'),
         ('GUEST', 'Guest'),
     )

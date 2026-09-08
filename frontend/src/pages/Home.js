@@ -1,86 +1,82 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/Home.css";
+import dashboardMockup from "../assets/dashboard_mockup.jpg"; // Generated mock dashboard image
 
 const Home = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="home-wrapper">
       
-      {/* HERO SECTION */}
-      <section className="hero">
-        <h1>
-          Welcome to <span className="highlight">PMS Pro</span>
-        </h1>
+      {/* Pangoni-style Landing Navbar */}
+      <nav className="landing-navbar">
+        <a href="/" className="landing-nav-logo">PMS Pro</a>
+        <div className="landing-nav-links">
+          <a href="#home">Home</a>
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#blog">Blog</a>
+          <a href="#contact">Contact</a>
+        </div>
+      </nav>
 
-        <p className="hero-subtext">
-          The smarter way to manage apartments, hotels, and Airbnbs.
-          Automate bookings, leases, payments, and maintenance —
-          all from one powerful platform.
-        </p>
-
-        <div className="hero-buttons">
-          <a href="/register" className="primary-btn">
-            Get Started
-          </a>
-          <a href="/login" className="secondary-btn">
-            Login
-          </a>
+      {/* HERO SECTION (SPLIT LAYOUT) */}
+      <section className="hero-split" id="home">
+        <div className="hero-left">
+          <h1>
+            The modern standard for <span className="highlight">Property Management</span>
+          </h1>
+          <p>
+            Connect owners, managers, and tenants in one seamless, financial-first ecosystem. Manage leases, collect rent automatically via M-Pesa, and streamline maintenance requests.
+          </p>
+          <div className="hero-buttons">
+            <button className="primary-cta" onClick={() => navigate("/register")}>
+              Create a Workspace
+            </button>
+            <button className="primary-cta" style={{ background: '#f1f5f9', color: '#0f172a', boxShadow: 'none' }} onClick={() => navigate("/login")}>
+              Tenant Portal
+            </button>
+          </div>
+        </div>
+        
+        <div className="hero-right">
+          <img src={dashboardMockup} alt="PMS Pro Dashboard Interface" className="dashboard-mockup" />
         </div>
       </section>
 
       {/* FEATURES SECTION */}
-      <section className="features">
-        <h2>Main Features</h2>
+      <section className="features" id="features">
+        <h2>Everything you need to scale</h2>
 
         <div className="feature-grid">
-
-          <div className="feature-card">
-            <h3>🏢 Property Management</h3>
+          <div className="feature-item">
+            <h4>📱 Native M-Pesa Integration</h4>
             <p>
-              List apartments, hotels, and Airbnbs with full unit control
-              and real-time availability tracking.
+              Automated STK pushes and C2B callbacks. Rent payments are reconciled against invoices instantly without manual ledger entries.
             </p>
           </div>
 
-          <div className="feature-card">
-            <h3>📅 Smart Bookings</h3>
+          <div className="feature-item">
+            <h4>📄 Bulletproof Leases</h4>
             <p>
-              Automated reservations with real-time availability
-              and double-booking prevention.
+              Strict domain enforcement: a unit cannot have two active leases. Automated unit status transitions from Vacant to Occupied.
             </p>
           </div>
 
-          <div className="feature-card">
-            <h3>💳 Payments & Escrow</h3>
+          <div className="feature-item">
+            <h4>💰 Immutable Financials</h4>
             <p>
-              Secure rent collection, deposits, refunds,
-              and split payouts for owners.
+              Payments are never deleted. Full audit trails for deposits, partial payments, and arrears aging.
             </p>
           </div>
 
-          <div className="feature-card">
-            <h3>🛠 Maintenance Tracking</h3>
+          <div className="feature-item">
+            <h4>🛠 Vendor Routing</h4>
             <p>
-              Tenants submit repair requests with photos.
-              Owners assign vendors and track work orders.
+              Tenants report issues; managers assign vendors. Status is tracked transparently until the tenant verifies the fix.
             </p>
           </div>
-
-          <div className="feature-card">
-            <h3>📄 Lease Management</h3>
-            <p>
-              Draft digital leases, track renewals,
-              and automate rent reminders.
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>📊 Financial Insights</h3>
-            <p>
-              Track expenses, calculate NOI,
-              and generate financial reports.
-            </p>
-          </div>
-
         </div>
       </section>
 

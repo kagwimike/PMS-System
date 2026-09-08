@@ -11,3 +11,11 @@ class IsAdmin(BasePermission):
 class IsTenant(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'TENANT'
+
+class IsManager(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'MANAGER'
+
+class IsCaretaker(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'CARETAKER'

@@ -2,7 +2,8 @@ function successResponse(
   res,
   data = null,
   message = "Success",
-  statusCode = 200
+  statusCode = 200,
+  meta = null
 ) {
   const response = {
     success: true,
@@ -11,6 +12,10 @@ function successResponse(
 
   if (data !== null && data !== undefined) {
     response.data = data;
+  }
+
+  if (meta !== null && meta !== undefined) {
+    response.meta = meta;
   }
 
   return res.status(statusCode).json(response);

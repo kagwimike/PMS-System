@@ -24,12 +24,19 @@ const createLease = async (req, res) => {
   }
 };
 
+const { getPagination, getPagingData } = require('../utils/pagination');
+
 const getLeases = async (req, res) => {
   try {
-    const leases = await Lease.findAll({
-      include: ['unit', 'tenant']
+    const { page, limit } = req.query;
+    const { limit: size, offset } = getPagination(page, limit);
+    const data = await Lease.findAndCountAll({
+      include: ['unit', 'tenant'],
+      limit: size,
+      offset
     });
-    return successResponse(res, leases, 'Leases retrieved successfully');
+    const { rows, meta } = getPagingData(data, page, size);
+    return successResponse(res, rows, 'Leases retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getLeases:', error);
     return errorResponse(res, 'Failed to retrieve leases', 400, error);
@@ -51,8 +58,33 @@ const getLease = async (req, res) => {
   }
 };
 
+const updateLeaseStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const lease = await Lease.findByPk(req.params.leaseId);
+    
+    if (!lease) {
+      throw new ApiError(404, 'Lease not found');
+    }
+    
+    // Valid status transitions can be checked here
+    const validStatuses = ['PENDING', 'ACTIVE', 'TERMINATED', 'RENEWED'];
+    if (status && validStatuses.includes(status)) {
+      lease.status = status;
+      await lease.save();
+      return successResponse(res, lease, 'Lease status updated successfully');
+    }
+    
+    throw new ApiError(400, 'Invalid status update');
+  } catch (error) {
+    console.error('Error in updateLeaseStatus:', error);
+    return errorResponse(res, 'Failed to update lease status', 400, error);
+  }
+};
+
 module.exports = {
   createLease,
   getLeases,
-  getLease
+  getLease,
+  updateLeaseStatus
 };

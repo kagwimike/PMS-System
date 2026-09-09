@@ -42,7 +42,11 @@ const Unit = sequelize.define('Unit', {
   },
 }, {
   tableName: 'units_unit',
-  timestamps: false, // In django it didn't seem to have created_at explicitly
+  timestamps: true,
+  paranoid: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  deletedAt: 'deleted_at',
 });
 
 Unit.belongsTo(Property, { foreignKey: 'property_id', as: 'property' });

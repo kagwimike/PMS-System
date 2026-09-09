@@ -35,24 +35,41 @@ const createProperty = async (propertyBody, ownerId, images, amenities_ids = [],
   return property;
 };
 
-const getProperties = async (user) => {
+const getProperties = async (user, limit, offset) => {
   // Adding include clauses to prefetch relationships
   const include = [{ model: Amenity, as: 'amenities' }, { model: PropertyImage, as: 'images' }];
   
   if (user.role === 'ADMIN') {
-    return Property.findAll({ where: { is_deleted: false }, include });
+    return Property.findAndCountAll({ include, limit, offset, distinct: true });
   } else if (user.role === 'OWNER') {
-    return Property.findAll({ where: { owner_id: user.id, is_deleted: false }, include });
+    return Property.findAndCountAll({ where: { owner_id: user.id }, include, limit, offset, distinct: true });
   }
-  return []; 
+  return { count: 0, rows: [] }; 
 };
 
 const getPropertyById = async (id) => {
   const include = [{ model: Amenity, as: 'amenities' }, { model: PropertyImage, as: 'images' }];
-  const property = await Property.findOne({ where: { id, is_deleted: false }, include });
+  const property = await Property.findOne({ where: { id }, include });
   if (!property) {
     throw new ApiError(404, 'Property not found');
   }
+  return property;
+};
+
+const updateProperty = async (id, updateBody) => {
+  const property = await getPropertyById(id);
+  Object.assign(property, updateBody);
+  if (updateBody.name) {
+    property.slug = slugify(updateBody.name, { lower: true, strict: true });
+  }
+  await property.save();
+  return property;
+};
+
+const deleteProperty = async (id) => {
+  const property = await getPropertyById(id);
+  // paranoid: true will automatically soft-delete
+  await property.destroy();
   return property;
 };
 
@@ -60,4 +77,6 @@ module.exports = {
   createProperty,
   getProperties,
   getPropertyById,
+  updateProperty,
+  deleteProperty,
 };

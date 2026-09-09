@@ -7,6 +7,12 @@ const router = express.Router();
 router
   .route('/:userId')
   .get(auth, userController.getUser)
-  .patch(auth, userController.updateUser);
+  .put(auth, userController.updateUser)
+  .patch(auth, userController.updateUser)
+  .delete(auth, userController.deleteUser);
+
+router
+  .route('/:userId/archive')
+  .patch(auth, userController.archiveTenant);
 
 module.exports = router;

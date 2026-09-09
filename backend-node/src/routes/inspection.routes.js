@@ -11,7 +11,9 @@ router
 
 router
   .route('/:inspectionId')
-  .get(auth, inspectionController.getInspection);
+  .get(auth, inspectionController.getInspection)
+  .put(auth, inspectionController.updateInspection)
+  .patch(auth, inspectionController.updateInspection);
 
 router
   .route('/damages')

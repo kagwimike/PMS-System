@@ -13,6 +13,8 @@ require('./src/models/MaintenanceRequest');
 require('./src/models/Inspection');
 require('./src/models/Damage');
 require('./src/models/Notification');
+require('./src/models/Document');
+require('./src/models/AuditLog');
 
 async function syncDb() {
   try {

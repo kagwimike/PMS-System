@@ -12,6 +12,9 @@ router
 
 router
   .route('/:propertyId')
-  .get(propertyController.getProperty);
+  .get(propertyController.getProperty)
+  .put(auth, propertyController.updateProperty)
+  .patch(auth, propertyController.updateProperty)
+  .delete(auth, propertyController.deleteProperty);
 
 module.exports = router;

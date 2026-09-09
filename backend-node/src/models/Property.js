@@ -45,15 +45,13 @@ const Property = sequelize.define('Property', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
-  is_deleted: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
 }, {
   tableName: 'properties_property',
   timestamps: true,
+  paranoid: true, // Soft-deletes
   createdAt: 'created_at',
-  updatedAt: false, // In django only created_at is present
+  updatedAt: 'updated_at',
+  deletedAt: 'deleted_at',
 });
 
 Property.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });

@@ -12,12 +12,16 @@ const createBooking = async (req, res) => {
   }
 };
 
+const { getPagination, getPagingData } = require('../utils/pagination');
+
 const getBookings = async (req, res) => {
   try {
-    const guestId = req.user.id;
-    const propertyId = req.query.property;
-    const bookings = await bookingService.getBookings(propertyId);
-    return successResponse(res, bookings, 'Bookings retrieved successfully');
+    const { page, limit, property: propertyId } = req.query;
+    const { limit: size, offset } = getPagination(page, limit);
+    const data = await bookingService.getBookings(propertyId, size, offset);
+    const { rows, meta } = getPagingData(data, page, size);
+    
+    return successResponse(res, rows, 'Bookings retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getBookings:', error);
     return errorResponse(res, 'Failed to retrieve bookings', 400, error);

@@ -9,4 +9,10 @@ router
   .post(auth, unitController.createUnit)
   .get(auth, unitController.getUnits);
 
+router
+  .route('/:unitId')
+  .put(auth, unitController.updateUnit)
+  .patch(auth, unitController.updateUnit)
+  .delete(auth, unitController.deleteUnit);
+
 module.exports = router;

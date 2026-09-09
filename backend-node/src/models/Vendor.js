@@ -22,8 +22,10 @@ const Vendor = sequelize.define('Vendor', {
 }, {
   tableName: 'maintenance_vendor',
   timestamps: true,
+  paranoid: true,
   createdAt: 'created_at',
-  updatedAt: false,
+  updatedAt: 'updated_at',
+  deletedAt: 'deleted_at',
 });
 
 module.exports = Vendor;

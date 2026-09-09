@@ -16,10 +16,19 @@ const createMaintenanceRequest = async (req, res) => {
   }
 };
 
+const { getPagination, getPagingData } = require('../utils/pagination');
+
 const getMaintenanceRequests = async (req, res) => {
   try {
-    const requests = await MaintenanceRequest.findAll({ include: ['tenant', 'property', 'unit', 'assigned_vendor'] });
-    return successResponse(res, requests, 'Maintenance Requests retrieved successfully');
+    const { page, limit } = req.query;
+    const { limit: size, offset } = getPagination(page, limit);
+    const data = await MaintenanceRequest.findAndCountAll({ 
+      include: ['tenant', 'property', 'unit', 'assigned_vendor'],
+      limit: size,
+      offset
+    });
+    const { rows, meta } = getPagingData(data, page, size);
+    return successResponse(res, rows, 'Maintenance Requests retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getMaintenanceRequests:', error);
     return errorResponse(res, 'Failed to retrieve maintenance requests', 400, error);
@@ -49,11 +58,64 @@ const createVendor = async (req, res) => {
 
 const getVendors = async (req, res) => {
   try {
-    const vendors = await Vendor.findAll();
-    return successResponse(res, vendors, 'Vendors retrieved successfully');
+    const { page, limit } = req.query;
+    const { limit: size, offset } = getPagination(page, limit);
+    const data = await Vendor.findAndCountAll({ limit: size, offset });
+    const { rows, meta } = getPagingData(data, page, size);
+    return successResponse(res, rows, 'Vendors retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getVendors:', error);
     return errorResponse(res, 'Failed to retrieve vendors', 400, error);
+  }
+};
+
+const updateMaintenanceRequest = async (req, res) => {
+  try {
+    const request = await MaintenanceRequest.findByPk(req.params.requestId);
+    if (!request) throw new ApiError(404, 'Maintenance Request not found');
+
+    if (request.status === 'COMPLETED' || request.status === 'VERIFIED') {
+      // If closed, only allow status updates (e.g. reopen, or transition to VERIFIED)
+      const allowedKeys = ['status', 'vendor_notes'];
+      const updates = Object.keys(req.body);
+      for (const key of updates) {
+        if (!allowedKeys.includes(key)) {
+          throw new ApiError(400, 'Cannot modify core details of a closed ticket');
+        }
+      }
+    }
+    
+    Object.assign(request, req.body);
+    await request.save();
+    return successResponse(res, request, 'Maintenance Request updated successfully');
+  } catch (error) {
+    console.error('Error in updateMaintenanceRequest:', error);
+    return errorResponse(res, 'Failed to update maintenance request', 400, error);
+  }
+};
+
+const updateVendor = async (req, res) => {
+  try {
+    const vendor = await Vendor.findByPk(req.params.vendorId);
+    if (!vendor) throw new ApiError(404, 'Vendor not found');
+    Object.assign(vendor, req.body);
+    await vendor.save();
+    return successResponse(res, vendor, 'Vendor updated successfully');
+  } catch (error) {
+    console.error('Error in updateVendor:', error);
+    return errorResponse(res, 'Failed to update vendor', 400, error);
+  }
+};
+
+const deleteVendor = async (req, res) => {
+  try {
+    const vendor = await Vendor.findByPk(req.params.vendorId);
+    if (!vendor) throw new ApiError(404, 'Vendor not found');
+    await vendor.destroy(); // soft-delete due to paranoid
+    return successResponse(res, vendor, 'Vendor deleted successfully');
+  } catch (error) {
+    console.error('Error in deleteVendor:', error);
+    return errorResponse(res, 'Failed to delete vendor', 400, error);
   }
 };
 
@@ -61,6 +123,9 @@ module.exports = {
   createMaintenanceRequest,
   getMaintenanceRequests,
   getMaintenanceRequest,
+  updateMaintenanceRequest,
   createVendor,
-  getVendors
+  getVendors,
+  updateVendor,
+  deleteVendor
 };

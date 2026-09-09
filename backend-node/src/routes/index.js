@@ -10,6 +10,9 @@ const maintenanceRoutes = require('./maintenance.routes');
 const inspectionRoutes = require('./inspection.routes');
 const notificationRoutes = require('./notification.routes');
 
+const documentRoutes = require('./document.routes');
+const auditlogRoutes = require('./auditlog.routes');
+
 const router = express.Router();
 
 router.use('/auth', authRoutes);
@@ -22,5 +25,7 @@ router.use('/finance', paymentRoutes); // Combined payments/invoices under finan
 router.use('/maintenance', maintenanceRoutes);
 router.use('/inspections', inspectionRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/documents', documentRoutes);
+router.use('/auditlogs', auditlogRoutes);
 
 module.exports = router;

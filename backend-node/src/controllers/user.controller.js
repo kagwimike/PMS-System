@@ -21,7 +21,29 @@ const updateUser = async (req, res) => {
   }
 };
 
+const archiveTenant = async (req, res) => {
+  try {
+    const user = await userService.archiveTenant(req.params.userId);
+    return successResponse(res, user, 'Tenant archived successfully');
+  } catch (error) {
+    console.error('Error in archiveTenant:', error);
+    return errorResponse(res, error.message || 'Failed to archive tenant', 400, error);
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const user = await userService.deleteUser(req.params.userId);
+    return successResponse(res, user, 'User soft-deleted successfully');
+  } catch (error) {
+    console.error('Error in deleteUser:', error);
+    return errorResponse(res, error.message || 'Failed to delete user', 400, error);
+  }
+};
+
 module.exports = {
   getUser,
   updateUser,
+  archiveTenant,
+  deleteUser,
 };

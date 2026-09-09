@@ -16,7 +16,28 @@ const updateUserById = async (id, updateBody) => {
   return user;
 };
 
+const archiveTenant = async (id) => {
+  const user = await getUserById(id);
+  if (user.role !== 'TENANT') {
+    throw new ApiError(400, 'Only active tenants can be archived');
+  }
+  user.role = 'FORMER_TENANT';
+  await user.save();
+  return user;
+};
+
+const deleteUser = async (id) => {
+  const user = await getUserById(id);
+  user.is_active = false;
+  user.role = 'INACTIVE';
+  await user.save();
+  await user.destroy(); // soft delete via paranoid
+  return user;
+};
+
 module.exports = {
   getUserById,
   updateUserById,
+  archiveTenant,
+  deleteUser,
 };

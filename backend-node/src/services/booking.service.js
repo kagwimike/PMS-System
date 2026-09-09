@@ -5,8 +5,10 @@ const createBooking = async (bookingBody, guestId) => {
   return Booking.create({ ...bookingBody, guest_id: guestId });
 };
 
-const getBookings = async (guestId) => {
-  return Booking.findAll({ where: { guest_id: guestId } });
+const getBookings = async (propertyId, limit, offset) => {
+  const filter = {};
+  if (propertyId) filter.property_id = propertyId;
+  return Booking.findAndCountAll({ where: filter, limit, offset });
 };
 
 const updateBookingStatus = async (id, status) => {

@@ -1,12 +1,19 @@
 const Notification = require('../models/Notification');
 const { successResponse, errorResponse } = require('../utils/formatResponse');
 
+const { getPagination, getPagingData } = require('../utils/pagination');
+
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.findAll({
-      where: { recipient_id: req.user.id }
+    const { page, limit } = req.query;
+    const { limit: size, offset } = getPagination(page, limit);
+    const data = await Notification.findAndCountAll({
+      where: { recipient_id: req.user.id },
+      limit: size,
+      offset
     });
-    return successResponse(res, notifications, 'Notifications retrieved successfully');
+    const { rows, meta } = getPagingData(data, page, size);
+    return successResponse(res, rows, 'Notifications retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getNotifications:', error);
     return errorResponse(res, 'Failed to retrieve notifications', 400, error);

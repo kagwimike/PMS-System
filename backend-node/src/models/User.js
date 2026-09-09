@@ -26,7 +26,7 @@ const User = sequelize.define('User', {
     allowNull: false,
   },
   role: {
-    type: DataTypes.ENUM('ADMIN', 'OWNER', 'TENANT', 'GUEST'),
+    type: DataTypes.ENUM('ADMIN', 'OWNER', 'TENANT', 'FORMER_TENANT', 'GUEST', 'INACTIVE'),
     defaultValue: 'GUEST',
   },
   phone: {
@@ -69,8 +69,10 @@ const User = sequelize.define('User', {
 }, {
   tableName: 'accounts_user', // Mapping to existing django table if needed, or create new
   timestamps: true,
+  paranoid: true, // Soft-deletes
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  deletedAt: 'deleted_at',
   hooks: {
     beforeSave: async (user) => {
       if (user.changed('password')) {

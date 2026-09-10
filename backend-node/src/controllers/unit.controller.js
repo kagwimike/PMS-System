@@ -1,14 +1,14 @@
 const unitService = require('../services/unit.service');
 const { successResponse, errorResponse } = require('../utils/formatResponse');
 
-const { getPagination, getPagingData } = require('../utils/pagination');
+const { getCursorPagination, getCursorPagingData } = require('../utils/pagination');
 
 const getUnits = async (req, res) => {
   try {
-    const { page, limit, property: propertyId } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await unitService.getUnits(propertyId, size, offset);
-    const { rows, meta } = getPagingData(data, page, size);
+    const { limit, cursor, property: propertyId } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await unitService.getUnits(propertyId, size, where, order);
+    const { rows, meta } = getCursorPagingData(data, size);
     return successResponse(res, rows, 'Units retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getUnits:', error);

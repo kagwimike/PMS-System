@@ -14,14 +14,14 @@ const createInvoice = async (req, res) => {
   }
 };
 
-const { getPagination, getPagingData } = require('../utils/pagination');
+const { getCursorPagination, getCursorPagingData } = require('../utils/pagination');
 
 const getInvoices = async (req, res) => {
   try {
-    const { page, limit } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await Invoice.findAndCountAll({ include: ['lease'], limit: size, offset });
-    const { rows, meta } = getPagingData(data, page, size);
+    const { limit, cursor } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await Invoice.findAll({ where, include: ['lease'], limit: size, order });
+    const { rows, meta } = getCursorPagingData(data, size);
     
     return successResponse(res, rows, 'Invoices retrieved successfully', 200, meta);
   } catch (error) {
@@ -71,10 +71,10 @@ const createPayment = async (req, res) => {
 
 const getPayments = async (req, res) => {
   try {
-    const { page, limit } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await Payment.findAndCountAll({ include: ['invoice', 'tenant'], limit: size, offset });
-    const { rows, meta } = getPagingData(data, page, size);
+    const { limit, cursor } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await Payment.findAll({ where, include: ['invoice', 'tenant'], limit: size, order });
+    const { rows, meta } = getCursorPagingData(data, size);
 
     return successResponse(res, rows, 'Payments retrieved successfully', 200, meta);
   } catch (error) {

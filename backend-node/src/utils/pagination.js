@@ -1,27 +1,50 @@
-const getPagination = (page, size) => {
-  const limit = size ? Math.min(parseInt(size), 100) : 10;
-  const offset = page ? (parseInt(page) - 1) * limit : 0;
-  return { limit, offset };
+const { Op } = require('sequelize');
+
+const encodeCursor = (id) => {
+  if (!id) return null;
+  return Buffer.from(id.toString()).toString('base64');
 };
 
-const getPagingData = (data, page, limit) => {
-  const { count: totalItems, rows } = data;
-  const currentPage = page ? parseInt(page) : 1;
-  const totalPages = Math.ceil(totalItems / limit);
+const decodeCursor = (cursor) => {
+  if (!cursor) return null;
+  const decoded = Buffer.from(cursor, 'base64').toString('ascii');
+  return parseInt(decoded, 10);
+};
+
+const getCursorPagination = (cursorStr, size) => {
+  const limit = size ? Math.min(parseInt(size), 100) : 10;
+  const cursorId = decodeCursor(cursorStr);
+  
+  // Assuming default sort is newest first (id DESC)
+  // To get older items, we fetch IDs LESS THAN the cursor
+  const where = cursorId ? { id: { [Op.lt]: cursorId } } : {};
+  const order = [['id', 'DESC']];
+
+  return { limit, where, order };
+};
+
+const getCursorPagingData = (rows, limit) => {
+  let nextCursor = null;
+  
+  // If we fetched exactly 'limit' items, there might be more. 
+  // Set nextCursor to the ID of the last item.
+  if (rows.length > 0 && rows.length === limit) {
+    const lastItem = rows[rows.length - 1];
+    nextCursor = encodeCursor(lastItem.id);
+  }
 
   return {
-    totalItems,
     rows,
     meta: {
-      totalItems,
-      totalPages,
-      currentPage,
       limit,
+      nextCursor
     }
   };
 };
 
 module.exports = {
-  getPagination,
-  getPagingData
+  encodeCursor,
+  decodeCursor,
+  getCursorPagination,
+  getCursorPagingData
 };

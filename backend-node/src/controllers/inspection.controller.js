@@ -16,14 +16,14 @@ const createInspection = async (req, res) => {
   }
 };
 
-const { getPagination, getPagingData } = require('../utils/pagination');
+const { getCursorPagination, getCursorPagingData } = require('../utils/pagination');
 
 const getInspections = async (req, res) => {
   try {
-    const { page, limit } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await Inspection.findAndCountAll({ include: ['lease', 'inspector', 'damages'], limit: size, offset });
-    const { rows, meta } = getPagingData(data, page, size);
+    const { limit, cursor } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await Inspection.findAll({ where, include: ['lease', 'inspector', 'damages'], limit: size, order });
+    const { rows, meta } = getCursorPagingData(data, size);
     return successResponse(res, rows, 'Inspections retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getInspections:', error);

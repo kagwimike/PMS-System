@@ -35,16 +35,16 @@ const createProperty = async (propertyBody, ownerId, images, amenities_ids = [],
   return property;
 };
 
-const getProperties = async (user, limit, offset) => {
+const getProperties = async (user, limit, cursorWhere, order) => {
   // Adding include clauses to prefetch relationships
   const include = [{ model: Amenity, as: 'amenities' }, { model: PropertyImage, as: 'images' }];
   
   if (user.role === 'ADMIN') {
-    return Property.findAndCountAll({ include, limit, offset, distinct: true });
+    return Property.findAll({ where: cursorWhere, include, limit, order });
   } else if (user.role === 'OWNER') {
-    return Property.findAndCountAll({ where: { owner_id: user.id }, include, limit, offset, distinct: true });
+    return Property.findAll({ where: { owner_id: user.id, ...cursorWhere }, include, limit, order });
   }
-  return { count: 0, rows: [] }; 
+  return []; 
 };
 
 const getPropertyById = async (id) => {

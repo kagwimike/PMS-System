@@ -1,7 +1,12 @@
-const ApiError = require('../utils/ApiError');
+// src/middleware/notFound.middleware.js
+const { errorResponse } = require("../utils/formatResponse");
 
-const notFoundHandler = (req, res, next) => {
-  next(new ApiError(404, 'Not found'));
+module.exports = (req, res, next) => {
+  const message = `Route ${req.originalUrl} not found`;
+  // Send a consistent error payload (mirrors other error responses)
+  return errorResponse(res, message, 404, {
+    method: req.method,
+    path: req.originalUrl,
+    timestamp: new Date().toISOString(),
+  });
 };
-
-module.exports = notFoundHandler;

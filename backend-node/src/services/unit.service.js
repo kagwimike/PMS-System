@@ -1,8 +1,11 @@
 const Unit = require('../models/Unit');
 
-const getUnits = async (propertyId, limit, offset) => {
-  const whereClause = propertyId ? { property_id: propertyId } : {};
-  return Unit.findAndCountAll({ where: whereClause, limit, offset });
+const getUnits = async (propertyId, limit, cursorWhere, order) => {
+  const whereClause = { ...cursorWhere };
+  if (propertyId) {
+    whereClause.property_id = propertyId;
+  }
+  return Unit.findAll({ where: whereClause, limit, order });
 };
 
 const createUnit = async (unitBody) => {

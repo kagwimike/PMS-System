@@ -19,19 +19,19 @@ const createDocument = async (req, res) => {
   }
 };
 
-const { getPagination, getPagingData } = require('../utils/pagination');
+const { getCursorPagination, getCursorPagingData } = require('../utils/pagination');
 
 const getDocuments = async (req, res) => {
   try {
-    const { page, limit, entity_type, entity_id } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
+    const { limit, cursor, entity_type, entity_id } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
     
-    const filter = {};
+    const filter = { ...where };
     if (entity_type) filter.entity_type = entity_type;
     if (entity_id) filter.entity_id = entity_id;
 
-    const data = await Document.findAndCountAll({ where: filter, limit: size, offset });
-    const { rows, meta } = getPagingData(data, page, size);
+    const data = await Document.findAll({ where: filter, limit: size, order });
+    const { rows, meta } = getCursorPagingData(data, size);
     
     return successResponse(res, rows, 'Documents retrieved successfully', 200, meta);
   } catch (error) {

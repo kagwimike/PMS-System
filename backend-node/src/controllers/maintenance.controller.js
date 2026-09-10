@@ -3,31 +3,52 @@ const Vendor = require('../models/Vendor');
 const ApiError = require('../utils/ApiError');
 const { successResponse, errorResponse } = require('../utils/formatResponse');
 
-const createMaintenanceRequest = async (req, res) => {
+const Lease = require('../models/Lease');
+const Unit = require('../models/Unit');
+
+const createMaintenanceRequest = async (req, res, next) => {
   try {
+    const { Op } = require('sequelize');
+    
+    // Check if the user is a tenant with an active or pending lease
+    const activeLease = await Lease.findOne({
+      where: { 
+        tenant_id: req.user.id, 
+        status: { [Op.in]: ['ACTIVE', 'PENDING'] }
+      },
+      include: [{ model: Unit, as: 'unit' }]
+    });
+
+    if (!activeLease || !activeLease.unit) {
+      throw new ApiError(400, 'You must have an active lease to submit a maintenance request.');
+    }
+
     const request = await MaintenanceRequest.create({
       ...req.body,
-      tenant_id: req.user.id
+      tenant_id: req.user.id,
+      unit_id: activeLease.unit_id,
+      property_id: activeLease.unit.property_id
     });
+    
     return successResponse(res, request, 'Maintenance Request created successfully', 201);
   } catch (error) {
-    console.error('Error in createMaintenanceRequest:', error);
-    return errorResponse(res, 'Failed to create maintenance request', 400, error);
+    next(error); // Pass to global error handler for graceful constraint messages
   }
 };
 
-const { getPagination, getPagingData } = require('../utils/pagination');
+const { getCursorPagination, getCursorPagingData } = require('../utils/pagination');
 
 const getMaintenanceRequests = async (req, res) => {
   try {
-    const { page, limit } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await MaintenanceRequest.findAndCountAll({ 
+    const { limit, cursor } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await MaintenanceRequest.findAll({ 
+      where,
       include: ['tenant', 'property', 'unit', 'assigned_vendor'],
       limit: size,
-      offset
+      order
     });
-    const { rows, meta } = getPagingData(data, page, size);
+    const { rows, meta } = getCursorPagingData(data, size);
     return successResponse(res, rows, 'Maintenance Requests retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getMaintenanceRequests:', error);
@@ -58,10 +79,10 @@ const createVendor = async (req, res) => {
 
 const getVendors = async (req, res) => {
   try {
-    const { page, limit } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await Vendor.findAndCountAll({ limit: size, offset });
-    const { rows, meta } = getPagingData(data, page, size);
+    const { limit, cursor } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await Vendor.findAll({ where, limit: size, order });
+    const { rows, meta } = getCursorPagingData(data, size);
     return successResponse(res, rows, 'Vendors retrieved successfully', 200, meta);
   } catch (error) {
     console.error('Error in getVendors:', error);

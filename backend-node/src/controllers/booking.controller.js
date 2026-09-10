@@ -12,14 +12,14 @@ const createBooking = async (req, res) => {
   }
 };
 
-const { getPagination, getPagingData } = require('../utils/pagination');
+const { getCursorPagination, getCursorPagingData } = require('../utils/pagination');
 
 const getBookings = async (req, res) => {
   try {
-    const { page, limit, property: propertyId } = req.query;
-    const { limit: size, offset } = getPagination(page, limit);
-    const data = await bookingService.getBookings(propertyId, size, offset);
-    const { rows, meta } = getPagingData(data, page, size);
+    const { limit, cursor, property: propertyId } = req.query;
+    const { limit: size, where, order } = getCursorPagination(cursor, limit);
+    const data = await bookingService.getBookings(propertyId, size, where, order);
+    const { rows, meta } = getCursorPagingData(data, size);
     
     return successResponse(res, rows, 'Bookings retrieved successfully', 200, meta);
   } catch (error) {
